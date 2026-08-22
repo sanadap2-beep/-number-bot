@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from database.models import (
     Product,
     ProductStatus,
+    ProductFulfillmentType,
     ProductPricingType,
     ProductDisplayType,
     ProviderService,
@@ -328,6 +329,7 @@ class ProductService:
             price_usd=price_usd,
             cost_price_usd=Decimal("0"),
             pricing_type=ProductPricingType.FIXED,
+            fulfillment_type=ProductFulfillmentType.MANUAL,
             display_type=display_type,
             min_quantity=min_quantity,
             max_quantity=max_quantity,

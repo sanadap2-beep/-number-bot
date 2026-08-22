@@ -9,6 +9,7 @@
 """
 import logging
 from decimal import Decimal
+from html import escape
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
@@ -18,11 +19,13 @@ from sqlalchemy.orm import selectinload
 
 from database.models import (
     User, UserFavorite, UnifiedOrder, UnifiedOrderStatus,
-    TransactionType, Product, ProductStatus,
+    TransactionType, Product, ProductStatus, ProductFulfillmentType,
 )
 from services.dynamic_service import DynamicService
 from services.balance_service import BalanceService, InsufficientBalanceError
 from services.notification_service import NotificationService
+from services.inventory_service import InventoryError, InventoryService
+from services.loyalty_service import LoyaltyService
 from services.settings_service import SettingsService
 from services.coupon_service import CouponService, CouponError
 from services.cashback_service import CashbackService
@@ -597,10 +600,22 @@ async def _execute_purchase(
         )
         return
 
-    # لا نخصم من المستخدم لمنتج يدوي أو غير مربوط بمزود فعال؛ لا يوجد
-    # مسار تنفيذ/تسليم تلقائي لهذه المنتجات في النظام الحالي.
-    if (
-        not product.api_provider_id
+    fulfillment = getattr(
+        product.fulfillment_type,
+        "value",
+        product.fulfillment_type,
+    )
+    if fulfillment == ProductFulfillmentType.INVENTORY.value:
+        if await InventoryService.available_count(session, product.id) <= 0:
+            await callback.answer(
+                "⚠️ هذا المنتج نفد من المخزون حالياً.",
+                show_alert=True,
+            )
+            await state.clear()
+            return
+    elif (
+        fulfillment != ProductFulfillmentType.API.value
+        or not product.api_provider_id
         or not product.provider_service_id
         or not product.api_provider
         or not product.api_provider.is_active
@@ -626,6 +641,19 @@ async def _execute_purchase(
         ).quantize(Decimal("0.0001"))
     else:
         total_price = product.price_usd
+
+    # مخزون الأكواد يباع بسعر ثابت ولا يقبل كوبونات لتبقى عملية التسليم
+    # والخصم ذرّية وقابلة للمراجعة.
+    if (
+        fulfillment == ProductFulfillmentType.INVENTORY.value
+        and coupon_code
+    ):
+        await callback.answer(
+            "⚠️ الكوبونات غير متاحة لهذا المنتج.",
+            show_alert=True,
+        )
+        await state.clear()
+        return
 
     # ── تطبيق الكوبون ──
     discount = Decimal("0")
@@ -735,6 +763,62 @@ async def _finalize_purchase(
     coupon,
 ):
     notifier = NotificationService(bot)
+
+    if (
+        getattr(product.fulfillment_type, "value", product.fulfillment_type)
+        == ProductFulfillmentType.INVENTORY.value
+    ):
+        try:
+            order, delivered_value, metadata = await InventoryService.purchase(
+                session,
+                user_id=db_user.id,
+                product_id=product.id,
+                price_usd=final_price,
+                quantity=quantity,
+            )
+        except (InventoryError, InsufficientBalanceError) as exc:
+            await callback.message.answer(f"⚠️ {exc}")
+            await state.clear()
+            return
+
+        await DynamicService.increment_product_sold(
+            session, product.id, quantity
+        )
+        cashback = await CashbackService.apply_cashback(
+            session,
+            db_user.id,
+            order.id,
+            "unified_orders",
+            final_price,
+        )
+        await LoyaltyService.award_purchase_points(
+            session,
+            db_user.id,
+            "unified_orders",
+            order.id,
+            final_price,
+        )
+        delivery_note = ""
+        if metadata and metadata.get("note"):
+            delivery_note = f"\\n📝 ملاحظة: {escape(str(metadata['note']))}"
+        await callback.message.answer(
+            "✅ <b>تم تنفيذ طلبك وتسليمه فوراً!</b>\\n\\n"
+            f"📦 المنتج: {escape(product.name_ar)}\\n"
+            f"🆔 الطلب: #{order.id}\\n"
+            f"💰 المبلغ: {final_price}$\\n"
+            f"🎁 بيانات التسليم:\\n<code>{escape(delivered_value)}</code>"
+            f"{delivery_note}\\n\\n"
+            "⚠️ احتفظ بهذه البيانات ولا تشاركها مع أحد.",
+        )
+        await notifier.notify_admin(
+            "📦 <b>تم تسليم منتج من المخزون</b>\\n\\n"
+            f"🆔 الطلب: #{order.id}\\n"
+            f"👤 المستخدم: {db_user.telegram_id}\\n"
+            f"📦 المنتج: {escape(product.name_ar)}\\n"
+            f"💰 المبلغ: {final_price}$"
+        )
+        await state.clear()
+        return
 
     # ── فحص الرصيد ──
     if db_user.balance < final_price:

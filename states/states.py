@@ -24,6 +24,10 @@ class AdminTicketStates(StatesGroup):
     waiting_reply = State()
 
 
+class AdminInventoryStates(StatesGroup):
+    waiting_value = State()
+
+
 # ══════════════ الشحن اليدوي - شام كاش ══════════════
 
 class ShamCashManualStates(StatesGroup):

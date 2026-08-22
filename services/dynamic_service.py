@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from database.models import (
     Category, SubCategory, Product, ApiProvider,
     NumberService, StarsPackage, CategoryType,
-    ProductStatus, ApiProviderType
+    ProductStatus, ProductFulfillmentType, ApiProviderType
 )
 
 
@@ -236,6 +236,7 @@ class DynamicService:
         api_provider_id: int | None = None,
         provider_service_id: str | None = None,
         provider_service_ref_id: int | None = None,
+        fulfillment_type: ProductFulfillmentType = ProductFulfillmentType.API,
         description: str | None = None,
         min_quantity: int = 1,
         max_quantity: int = 1,
@@ -252,6 +253,7 @@ class DynamicService:
             api_provider_id=api_provider_id,
             provider_service_ref_id=provider_service_ref_id,
             provider_service_id=provider_service_id,
+            fulfillment_type=fulfillment_type,
             description=description,
             min_quantity=min_quantity,
             max_quantity=max_quantity,

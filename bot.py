@@ -41,6 +41,7 @@ from handlers.admin import (
     api_providers as admin_api_providers,
     audit as admin_audit,
     health as admin_health,
+    inventory as admin_inventory,
     loyalty as admin_loyalty,
     coupons as admin_coupons,
     multi_admin as admin_multi_admin,
@@ -120,6 +121,7 @@ def register_routers():
     dp.include_router(admin_api_providers.router)
     dp.include_router(admin_audit.router)
     dp.include_router(admin_health.router)
+    dp.include_router(admin_inventory.router)
     dp.include_router(admin_loyalty.router)
     dp.include_router(admin_coupons.router)
     dp.include_router(admin_multi_admin.router)

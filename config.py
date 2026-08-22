@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./bot_database.db"
     # اختياري: يحفظ حالات المحادثة بعد إعادة التشغيل عند استخدام Redis.
     REDIS_URL: str = ""
+    # Fernet key for digital inventory. Generate with:
+    # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    INVENTORY_ENCRYPTION_KEY: str = ""
 
     # ── الإعدادات المالية الافتراضية (بالدولار فقط) ──
     DEFAULT_PROFIT_MARGIN_PERCENT: Decimal = Decimal("50")

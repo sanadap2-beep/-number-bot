@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from database.models import (
     ApiProvider,
+    ProductFulfillmentType,
     ProductStatus,
     ProviderService,
     ProviderServiceStatus,
@@ -184,7 +185,47 @@ async def prod_cost_received(
             prod_provider_id=None,
             prod_provider_svc_id=None,
         )
-        await _ask_product_type(message, state)
+        await _ask_fulfillment_mode(message, state)
+
+
+async def _ask_fulfillment_mode(message, state: FSMContext):
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📦 مخزون رقمي (كود/ترخيص شرعي)",
+        callback_data="admin:prod_fulfillment:inventory",
+    )
+    builder.button(
+        text="✋ يدوي (غير قابل للبيع تلقائياً)",
+        callback_data="admin:prod_fulfillment:manual",
+    )
+    builder.button(text="❌ إلغاء", callback_data="admin:products_menu")
+    builder.adjust(1)
+    await message.answer(
+        "هذا المنتج بلا مزود API. اختر طريقة التسليم:",
+        reply_markup=builder.as_markup(),
+    )
+
+
+@router.callback_query(F.data.startswith("admin:prod_fulfillment:"))
+async def prod_fulfillment_selected(
+    callback: CallbackQuery, state: FSMContext
+):
+    mode = callback.data.split(":")[2]
+    fulfillment = {
+        "inventory": ProductFulfillmentType.INVENTORY.value,
+        "manual": ProductFulfillmentType.MANUAL.value,
+    }.get(mode)
+    if fulfillment is None:
+        await callback.answer("⚠️ نوع غير صالح.", show_alert=True)
+        return
+    await state.update_data(
+        prod_fulfillment_type=fulfillment,
+        prod_provider_id=None,
+        prod_provider_svc_id=None,
+        prod_provider_service_ref_id=None,
+    )
+    await _ask_product_type(callback.message, state)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin:prod_provider:"))
@@ -200,7 +241,7 @@ async def prod_provider_selected(
             prod_provider_svc_id=None,
             prod_provider_service_ref_id=None,
         )
-        await _ask_product_type(callback.message, state)
+        await _ask_fulfillment_mode(callback.message, state)
         await callback.answer()
         return
 
@@ -212,7 +253,10 @@ async def prod_provider_selected(
         )
         return
 
-    await state.update_data(prod_provider_id=provider_id)
+    await state.update_data(
+        prod_provider_id=provider_id,
+        prod_fulfillment_type=ProductFulfillmentType.API.value,
+    )
     result = await session.execute(
         select(ProviderService)
         .where(
@@ -267,6 +311,7 @@ async def prod_service_manual(
     await state.update_data(
         prod_provider_id=provider_id,
         prod_provider_service_ref_id=None,
+        prod_fulfillment_type=ProductFulfillmentType.API.value,
     )
     await callback.message.edit_text(
         "🔢 أرسل آيدي الخدمة عند المزود يدوياً:",
@@ -293,6 +338,7 @@ async def prod_service_selected(
         prod_provider_id=service.api_provider_id,
         prod_provider_svc_id=service.external_service_id,
         prod_provider_service_ref_id=service.id,
+        prod_fulfillment_type=ProductFulfillmentType.API.value,
     )
     await _ask_product_type(callback.message, state)
     await callback.answer("✅ تم اختيار الخدمة.")
@@ -422,6 +468,12 @@ async def _save_product(
             api_provider_id=data.get("prod_provider_id"),
             provider_service_id=data.get("prod_provider_svc_id"),
             provider_service_ref_id=data.get("prod_provider_service_ref_id"),
+            fulfillment_type=ProductFulfillmentType(
+                data.get(
+                    "prod_fulfillment_type",
+                    ProductFulfillmentType.API.value,
+                )
+            ),
             requires_player_id=data.get("requires_player_id", False),
             requires_link=data.get("requires_link", False),
             requires_quantity=data.get("requires_quantity", False),

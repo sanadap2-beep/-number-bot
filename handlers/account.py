@@ -2,6 +2,8 @@
 صفحة حساب المستخدم.
 تعرض الرصيد بالدولار، الطلبات، سجل المعاملات.
 """
+from html import escape
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -9,11 +11,12 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
 
 from database.models import (
-    User, NumberOrder, UnifiedOrder,
+    User, NumberOrder, UnifiedOrder, DigitalInventoryItem,
     OrderStatus, UnifiedOrderStatus
 )
 from services.balance_service import BalanceService
 from services.cashback_service import CashbackService
+from services.inventory_service import InventoryError, InventoryService
 
 router = Router(name="account")
 
@@ -281,6 +284,24 @@ async def unified_order_detail(
     )
     if order.remains is not None:
         text += f"\n⏳ المتبقي: {order.remains}"
+
+    delivery_result = await session.execute(
+        select(DigitalInventoryItem).where(
+            DigitalInventoryItem.unified_order_id == order.id
+        )
+    )
+    delivery_item = delivery_result.scalar_one_or_none()
+    if delivery_item is not None:
+        try:
+            delivery_value = InventoryService.decrypt_value(
+                delivery_item.encrypted_value
+            )
+            text += (
+                "\n\n🎁 <b>بيانات التسليم:</b>\n"
+                f"<code>{escape(delivery_value)}</code>"
+            )
+        except InventoryError:
+            text += "\n\n⚠️ تعذر عرض بيانات التسليم حالياً."
 
     kb = InlineKeyboardBuilder()
     kb.button(text="🔙 رجوع للطلبات", callback_data="my_uni_orders:0")

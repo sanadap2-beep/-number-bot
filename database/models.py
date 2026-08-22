@@ -81,6 +81,19 @@ class ProductStatus(str, enum.Enum):
     INACTIVE = "inactive"
 
 
+class ProductFulfillmentType(str, enum.Enum):
+    API = "api"
+    INVENTORY = "inventory"
+    MANUAL = "manual"
+
+
+class InventoryItemStatus(str, enum.Enum):
+    AVAILABLE = "available"
+    RESERVED = "reserved"
+    SOLD = "sold"
+    VOID = "void"
+
+
 class SupportTicketStatus(str, enum.Enum):
     OPEN = "open"
     IN_PROGRESS = "in_progress"
@@ -797,6 +810,10 @@ class Product(Base):
     status: Mapped[ProductStatus] = mapped_column(
         SAEnum(ProductStatus), default=ProductStatus.ACTIVE
     )
+    fulfillment_type: Mapped[ProductFulfillmentType] = mapped_column(
+        SAEnum(ProductFulfillmentType),
+        default=ProductFulfillmentType.API,
+    )
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     is_bestseller: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -816,6 +833,40 @@ class Product(Base):
     )
     provider_service: Mapped["ProviderService | None"] = relationship(
         back_populates="products"
+    )
+    inventory_items: Mapped[list["DigitalInventoryItem"]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )
+
+
+class DigitalInventoryItem(Base):
+    """كود/ترخيص رقمي مؤمّن من مخزون منتج شرعي."""
+    __tablename__ = "digital_inventory_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    encrypted_value: Mapped[str] = mapped_column(Text)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[InventoryItemStatus] = mapped_column(
+        SAEnum(InventoryItemStatus),
+        default=InventoryItemStatus.AVAILABLE,
+        index=True,
+    )
+    unified_order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("unified_orders.id"), nullable=True, unique=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    sold_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+
+    product: Mapped["Product"] = relationship(
+        back_populates="inventory_items"
     )
 
 

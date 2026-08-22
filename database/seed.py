@@ -222,6 +222,20 @@ async def init_db() -> None:
                         )
                     )
 
+            product_columns = await conn.run_sync(
+                lambda sync_conn: {
+                    column["name"]
+                    for column in inspect(sync_conn).get_columns("products")
+                }
+            )
+            if "fulfillment_type" not in product_columns:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE products ADD COLUMN fulfillment_type "
+                        "VARCHAR(16) DEFAULT 'API'"
+                    )
+                )
+
     async with async_session_maker() as session:
 
         # ── زرع الإعدادات الافتراضية ──

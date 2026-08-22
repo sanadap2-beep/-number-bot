@@ -31,6 +31,7 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="🎫 تذاكر الدعم", callback_data="admin:tickets")
     b.button(text="🩺 صحة النظام", callback_data="admin:health")
     b.button(text="🎁 برنامج الولاء", callback_data="admin:loyalty")
+    b.button(text="📦 المخزون الرقمي", callback_data="admin:inventory")
     b.adjust(2)
     return b.as_markup()
 
@@ -150,6 +151,44 @@ def admin_number_order_refund_confirm_kb(order_id: int) -> InlineKeyboardMarkup:
         text="❌ إلغاء",
         callback_data=f"admin:num_order_view:{order_id}",
     )
+    b.adjust(1)
+    return b.as_markup()
+
+
+def admin_inventory_kb(products) -> InlineKeyboardMarkup:
+    """قائمة المنتجات التي تعتمد على المخزون الرقمي."""
+    b = InlineKeyboardBuilder()
+    for product, count in products:
+        b.button(
+            text=f"📦 {product.name_ar[:30]} · متاح: {count}",
+            callback_data=f"admin:inv_product:{product.id}",
+        )
+    b.button(text="🔙 لوحة الإدارة", callback_data="admin:main")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def admin_inventory_detail_kb(product_id: int) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.button(text="➕ إضافة كود/ترخيص", callback_data=f"admin:inv_add:{product_id}")
+    b.button(text="📋 العناصر المتاحة", callback_data=f"admin:inv_items:{product_id}")
+    b.button(text="🔙 المخزون", callback_data="admin:inventory")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def admin_inventory_items_kb(items, product_id: int) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    for item in items:
+        b.button(
+            text=f"🗑 إلغاء العنصر #{item.id}",
+            callback_data=f"admin:inv_void:{item.id}:{product_id}",
+        )
+    b.button(
+        text="➕ إضافة عنصر",
+        callback_data=f"admin:inv_add:{product_id}",
+    )
+    b.button(text="🔙 تفاصيل المنتج", callback_data=f"admin:inv_product:{product_id}")
     b.adjust(1)
     return b.as_markup()
 
