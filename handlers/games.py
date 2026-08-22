@@ -27,8 +27,8 @@ from services.settings_service import SettingsService
 from services.coupon_service import CouponService, CouponError
 from services.cashback_service import CashbackService
 from services.product_service import ProductService
-from providers.games_provider import GamesProviderClient, GamesProviderError
-from providers.smm_provider import SMMProviderClient, SMMProviderError
+from protocols.base import ProtocolError
+from protocols.factory import ProtocolFactory
 from states.states import (
     GamesOrderStates,
     ProductSearchStates,
@@ -793,24 +793,16 @@ async def _finalize_purchase(
         provider = product.api_provider
         if provider and provider.is_active:
             try:
-                if provider.type.value == "smm":
-                    client = SMMProviderClient(provider)
-                    result = await client.place_order(
-                        service_id=product.provider_service_id,
-                        link=target,
-                        quantity=quantity,
-                    )
-                else:
-                    client = GamesProviderClient(provider)
-                    result = await client.place_order(
-                        service_id=product.provider_service_id,
-                        target=target,
-                        quantity=quantity,
-                    )
-                external_order_id = result.get("order_id")
+                protocol = ProtocolFactory.create_from_provider(provider)
+                result = await protocol.place_order(
+                    service_id=product.provider_service_id,
+                    target=target,
+                    quantity=quantity,
+                )
+                external_order_id = result.external_order_id
                 order_status = UnifiedOrderStatus.PROCESSING
                 status_message = "تم إرسال الطلب للمزود"
-            except (GamesProviderError, SMMProviderError) as e:
+            except ProtocolError as e:
                 logger.error(
                     f"فشل إرسال الطلب للمزود: {e}"
                 )

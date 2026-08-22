@@ -15,12 +15,8 @@ from database.models import (
     UnifiedOrder, UnifiedOrderStatus,
     TransactionType,
 )
-from providers.games_provider import (
-    GamesProviderClient, GamesProviderError
-)
-from providers.smm_provider import (
-    SMMProviderClient, SMMProviderError
-)
+from protocols.base import ProtocolError
+from protocols.factory import ProtocolFactory
 from services.balance_service import BalanceService
 from services.notification_service import NotificationService
 from services.dynamic_service import DynamicService
@@ -89,15 +85,18 @@ async def _process_unified_order(
         return
 
     try:
-        if provider.type.value == "smm":
-            client = SMMProviderClient(provider)
-        else:
-            client = GamesProviderClient(provider)
-
-        status_data = await client.check_order_status(
+        protocol = ProtocolFactory.create_from_provider(provider)
+        status_result = await protocol.check_order_status(
             order.external_order_id
         )
-    except (GamesProviderError, SMMProviderError) as e:
+        status_data = {
+            "status": status_result.status,
+            "charge": status_result.charge,
+            "remains": status_result.remains,
+            "start_count": status_result.start_count,
+            "raw": status_result.raw,
+        }
+    except ProtocolError as e:
         logger.warning(
             f"فشل فحص الطلب #{order.id} من المزود: {e}"
         )

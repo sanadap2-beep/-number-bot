@@ -19,6 +19,10 @@ import logging
 
 from database.models import ApiProtocolType, ApiProvider
 from protocols.base import BaseProtocol, ProtocolError
+from protocols.generic_json import (
+    CustomJsonProtocol,
+    GamesGenericProtocol,
+)
 from protocols.smm_v2 import SmmV2Protocol
 
 logger = logging.getLogger(__name__)
@@ -32,6 +36,8 @@ class ProtocolFactory:
 
     _protocols: dict[ApiProtocolType, type[BaseProtocol]] = {
         ApiProtocolType.SMM_V2: SmmV2Protocol,
+        ApiProtocolType.GAMES_GENERIC: GamesGenericProtocol,
+        ApiProtocolType.CUSTOM: CustomJsonProtocol,
     }
 
     @classmethod

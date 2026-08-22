@@ -11,6 +11,7 @@
 - حذف مع تأكيد
 """
 import asyncio
+import json
 import logging
 from decimal import Decimal, InvalidOperation
 
@@ -102,10 +103,8 @@ async def aprov_add_start(
         "اختر نوع البروتوكول:\n\n"
         "📈 <b>SMM V2</b>: بروتوكول قياسي لمواقع "
         "رشق السوشيال (JumboSMM, SMMGold, PeakSMM, إلخ)\n\n"
-        "🎮 <b>Games</b>: لمواقع شحن الألعاب "
-        "<i>(قريباً)</i>\n\n"
-        "🛠 <b>Custom</b>: لأي موقع مخصص "
-        "<i>(قريباً)</i>",
+        "🎮 <b>Games</b>: مزود REST JSON للألعاب والتطبيقات\n\n"
+        "🛠 <b>Custom</b>: مسارات وحقول قابلة للتخصيص لأي API JSON",
         reply_markup=select_protocol_kb(),
     )
     await state.set_state(
@@ -119,14 +118,6 @@ async def aprov_protocol_selected(
 ):
     protocol_key = callback.data.split(":")[2]
 
-    if protocol_key not in ("smm_v2",):
-        await callback.answer(
-            "⏳ هذا البروتوكول قيد التطوير. "
-            "استخدم SMM V2 حالياً.",
-            show_alert=True,
-        )
-        return
-
     try:
         protocol_type = ApiProtocolType(protocol_key)
     except ValueError:
@@ -135,20 +126,63 @@ async def aprov_protocol_selected(
         )
         return
 
-    await state.update_data(
-        protocol_type=protocol_type.value
-    )
+    if protocol_type == ApiProtocolType.SMS:
+        await callback.answer(
+            "ℹ️ مزودو SMS يضافون من إعدادات مفاتيح SMS، "
+            "وليس من هذا القسم.",
+            show_alert=True,
+        )
+        return
+
+    await state.update_data(protocol_type=protocol_type.value)
     await callback.answer()
 
+    if protocol_type == ApiProtocolType.CUSTOM:
+        await callback.message.edit_text(
+            "🛠 <b>إعداد مزود مخصص</b>\\n\\n"
+            "أرسل JSON يحدد المسارات والحقول. مثال مختصر:\\n"
+            "<code>{\\\"endpoints\\\":{\\\"balance\\\":\\\"/balance\\\",\\\"services\\\":\\\"/services\\\",\\\"order\\\":\\\"/orders\\\",\\\"status\\\":\\\"/orders/{order_id}\\\"}}</code>\\n\\n"
+            "يمكنك إرسال {} لاستخدام القيم الافتراضية.",
+            reply_markup=admin_back_kb(),
+        )
+        await state.set_state(
+            AdminApiProviderStates.waiting_custom_config
+        )
+        return
+
     await callback.message.edit_text(
-        f"✅ البروتوكول: <b>{protocol_type.value.upper()}</b>\n\n"
-        "الخطوة 2️⃣ من 6️⃣\n\n"
+        f"✅ البروتوكول: <b>{protocol_type.value.upper()}</b>\\n\\n"
+        "الخطوة 2️⃣ من 6️⃣\\n\\n"
         "اختر نوع المزود:",
         reply_markup=select_provider_type_kb(),
     )
     await state.set_state(
         AdminApiProviderStates.waiting_type
     )
+
+
+@router.message(AdminApiProviderStates.waiting_custom_config)
+async def aprov_custom_config_received(
+    message: Message,
+    state: FSMContext,
+):
+    raw_config = (message.text or "").strip()
+    try:
+        custom_config = json.loads(raw_config or "{}")
+    except json.JSONDecodeError:
+        await message.answer("⚠️ أرسل JSON صحيحاً أو {}.")
+        return
+    if not isinstance(custom_config, dict):
+        await message.answer("⚠️ إعداد المزود يجب أن يكون JSON من نوع object.")
+        return
+
+    await state.update_data(custom_config=json.dumps(custom_config, ensure_ascii=False))
+    await message.answer(
+        "✅ تم حفظ إعدادات المزود المخصص.\\n\\n"
+        "الخطوة 2️⃣ من 6️⃣\\n\\nاختر نوع المزود:",
+        reply_markup=select_provider_type_kb(),
+    )
+    await state.set_state(AdminApiProviderStates.waiting_type)
 
 
 @router.callback_query(F.data.startswith("admin:aprov_ptype:"))
@@ -389,6 +423,7 @@ async def aprov_test_and_save(
             api_key=data["api_key"],
             currency=data["currency"],
             rate_to_usd=Decimal(data["rate_to_usd"]),
+            custom_config=data.get("custom_config"),
         )
     except Exception as e:
         await test_msg.edit_text(
@@ -429,6 +464,7 @@ async def aprov_test_and_save(
         currency=currency or data["currency"],
         rate_to_usd=Decimal(data["rate_to_usd"]),
         balance=balance,
+        custom_config=data.get("custom_config"),
         is_active=True,
         priority=1,
         low_balance_threshold=Decimal("10"),

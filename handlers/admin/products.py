@@ -7,8 +7,14 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from sqlalchemy import select
 
-from database.models import ProductStatus
+from database.models import (
+    ApiProvider,
+    ProductStatus,
+    ProviderService,
+    ProviderServiceStatus,
+)
 from services.dynamic_service import DynamicService
 from states.states import AdminProductStates
 from keyboards.admin import (
@@ -183,22 +189,68 @@ async def prod_cost_received(
 
 @router.callback_query(F.data.startswith("admin:prod_provider:"))
 async def prod_provider_selected(
-    callback: CallbackQuery, state: FSMContext
+    callback: CallbackQuery,
+    state: FSMContext,
+    session,
 ):
     provider_id = int(callback.data.split(":")[2])
     if provider_id == 0:
         await state.update_data(
             prod_provider_id=None,
             prod_provider_svc_id=None,
+            prod_provider_service_ref_id=None,
         )
         await _ask_product_type(callback.message, state)
         await callback.answer()
         return
 
+    provider = await session.get(ApiProvider, provider_id)
+    if provider is None or not provider.is_active:
+        await callback.answer(
+            "⚠️ المزود غير موجود أو معطّل.",
+            show_alert=True,
+        )
+        return
+
     await state.update_data(prod_provider_id=provider_id)
+    result = await session.execute(
+        select(ProviderService)
+        .where(
+            ProviderService.api_provider_id == provider_id,
+            ProviderService.status == ProviderServiceStatus.ACTIVE,
+        )
+        .order_by(ProviderService.category, ProviderService.name)
+        .limit(40)
+    )
+    services = list(result.scalars().all())
+    if not services:
+        await callback.message.edit_text(
+            "⚠️ لا توجد خدمات متزامنة لهذا المزود.\\n\\n"
+            "أرسل آيدي الخدمة الخارجي يدوياً:",
+            reply_markup=admin_back_kb(),
+        )
+        await state.set_state(
+            AdminProductStates.waiting_provider_service_id
+        )
+        await callback.answer()
+        return
+
+    builder = InlineKeyboardBuilder()
+    for service in services:
+        builder.button(
+            text=f"{service.external_service_id} · {service.name[:38]}",
+            callback_data=f"admin:prod_service:{service.id}",
+        )
+    builder.button(
+        text="✏️ إدخال آيدي خارجي يدوياً",
+        callback_data=f"admin:prod_service_manual:{provider_id}",
+    )
+    builder.button(text="🔙 إلغاء", callback_data="admin:products_menu")
+    builder.adjust(1)
     await callback.message.edit_text(
-        "🔢 أرسل آيدي الخدمة عند المزود:\n"
-        "(الرقم الذي يعرّف هذه الخدمة في لوحة المزود)"
+        f"🔌 <b>{provider.name}</b>\\n\\n"
+        "اختر الخدمة التي سُحبت من المزود:",
+        reply_markup=builder.as_markup(),
     )
     await state.set_state(
         AdminProductStates.waiting_provider_service_id
@@ -206,12 +258,57 @@ async def prod_provider_selected(
     await callback.answer()
 
 
+@router.callback_query(F.data.startswith("admin:prod_service_manual:"))
+async def prod_service_manual(
+    callback: CallbackQuery,
+    state: FSMContext,
+):
+    provider_id = int(callback.data.split(":")[2])
+    await state.update_data(
+        prod_provider_id=provider_id,
+        prod_provider_service_ref_id=None,
+    )
+    await callback.message.edit_text(
+        "🔢 أرسل آيدي الخدمة عند المزود يدوياً:",
+        reply_markup=admin_back_kb(),
+    )
+    await state.set_state(
+        AdminProductStates.waiting_provider_service_id
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:prod_service:"))
+async def prod_service_selected(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session,
+):
+    service_id = int(callback.data.split(":")[2])
+    service = await session.get(ProviderService, service_id)
+    if service is None or service.status != ProviderServiceStatus.ACTIVE:
+        await callback.answer("⚠️ الخدمة غير متاحة.", show_alert=True)
+        return
+    await state.update_data(
+        prod_provider_id=service.api_provider_id,
+        prod_provider_svc_id=service.external_service_id,
+        prod_provider_service_ref_id=service.id,
+    )
+    await _ask_product_type(callback.message, state)
+    await callback.answer("✅ تم اختيار الخدمة.")
+
+
 @router.message(AdminProductStates.waiting_provider_service_id)
 async def prod_svc_id_received(
     message: Message, state: FSMContext
 ):
+    service_id = (message.text or "").strip()
+    if not service_id or len(service_id) > 64:
+        await message.answer("⚠️ أرسل آيدي خدمة صالحاً (حتى 64 رمزاً).")
+        return
     await state.update_data(
-        prod_provider_svc_id=message.text.strip()
+        prod_provider_svc_id=service_id,
+        prod_provider_service_ref_id=None,
     )
     await _ask_product_type(message, state)
 
@@ -324,6 +421,7 @@ async def _save_product(
             cost_price_usd=Decimal(data.get("prod_cost", "0")),
             api_provider_id=data.get("prod_provider_id"),
             provider_service_id=data.get("prod_provider_svc_id"),
+            provider_service_ref_id=data.get("prod_provider_service_ref_id"),
             requires_player_id=data.get("requires_player_id", False),
             requires_link=data.get("requires_link", False),
             requires_quantity=data.get("requires_quantity", False),

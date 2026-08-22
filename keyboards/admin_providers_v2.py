@@ -58,11 +58,11 @@ def select_protocol_kb() -> InlineKeyboardMarkup:
         callback_data="admin:aprov_proto:smm_v2",
     )
     b.button(
-        text="🎮 Games (شحن ألعاب) - قياسي ⏳",
+        text="🎮 Games (شحن ألعاب) - JSON ✅",
         callback_data="admin:aprov_proto:games_generic",
     )
     b.button(
-        text="🛠 Custom (مخصص) - متقدم ⏳",
+        text="🛠 Custom JSON (مسارات وحقول قابلة للضبط) ✅",
         callback_data="admin:aprov_proto:custom",
     )
     b.button(
