@@ -3,12 +3,16 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime
+import hmac
+import os
+import re
 from decimal import Decimal
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -67,6 +71,65 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(admin_router)
+
+_setup_used = False
+
+
+class SetupPayload(BaseModel):
+    bot_token: str
+
+
+def _setup_is_valid(key: str) -> bool:
+    return bool(
+        settings.SETUP_KEY
+        and not _setup_used
+        and hmac.compare_digest(key, settings.SETUP_KEY)
+    )
+
+
+def _save_local_token(token: str) -> None:
+    """Write only to the ignored local.env file, atomically and privately."""
+    path = Path("local.env")
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    updated = False
+    for index, line in enumerate(lines):
+        if line.startswith("BOT_TOKEN="):
+            lines[index] = f"BOT_TOKEN={token}"
+            updated = True
+            break
+    if not updated:
+        lines.insert(0, f"BOT_TOKEN={token}")
+    temporary = path.with_name(".local.env.tmp")
+    temporary.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, path)
+
+
+@app.get("/setup/{setup_key}", response_class=HTMLResponse, include_in_schema=False)
+def setup_page(setup_key: str):
+    if not _setup_is_valid(setup_key):
+        raise HTTPException(status_code=404, detail="setup link expired")
+    return HTMLResponse(
+        """<!doctype html><meta name='viewport' content='width=device-width'>
+        <title>Bot setup</title><style>body{font-family:Arial;max-width:520px;margin:40px auto;padding:20px;background:#07111f;color:#eef7ff}input,button{width:100%;padding:14px;margin:8px 0;border-radius:8px;border:1px solid #345;background:#10233b;color:#fff}button{background:#6ee7d2;color:#07111f;font-weight:bold}</style>
+        <h2>إعداد البوت</h2><p>أدخل التوكن هنا فقط. لن يتم عرضه أو تسجيله.</p>
+        <input id='token' type='password' autocomplete='off' placeholder='BOT_TOKEN'>
+        <button onclick='save()'>حفظ التوكن</button><p id='result'></p>
+        <script>async function save(){const token=document.getElementById('token').value;const r=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_token:token})});document.getElementById('result').textContent=r.ok?'تم الحفظ. أغلق الصفحة وأعد تشغيل البوت.':'تعذر الحفظ؛ تحقق من التوكن.';}</script>"""
+    )
+
+
+@app.post("/setup/{setup_key}", include_in_schema=False)
+async def save_setup(setup_key: str, payload: SetupPayload):
+    global _setup_used
+    if not _setup_is_valid(setup_key):
+        raise HTTPException(status_code=404, detail="setup link expired")
+    token = payload.bot_token.strip()
+    if not re.fullmatch(r"\\d{5,15}:[A-Za-z0-9_-]{20,}", token):
+        raise HTTPException(status_code=400, detail="invalid Telegram bot token")
+    _save_local_token(token)
+    _setup_used = True
+    return {"status": "saved"}
 
 
 @app.get("/health/live")

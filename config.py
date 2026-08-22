@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     ADMIN_WEBAPP_URL: str = ""
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8080
+    # One-time local setup key; supplied by the launcher, never committed.
+    SETUP_KEY: str = ""
 
     # ── الإعدادات المالية الافتراضية (بالدولار فقط) ──
     DEFAULT_PROFIT_MARGIN_PERCENT: Decimal = Decimal("50")
