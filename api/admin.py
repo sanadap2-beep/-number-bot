@@ -1,8 +1,11 @@
 """Admin HTTP API for the browser dashboard."""
+import csv
 from datetime import datetime, timedelta
 from decimal import Decimal
+from io import StringIO
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
 
@@ -24,6 +27,7 @@ from database.models import (
     ProviderStatus,
 )
 from services.audit_service import AuditService
+from services.quality_service import QualityService
 
 router = APIRouter(
     prefix="/api/v1/admin",
@@ -97,6 +101,37 @@ async def finance(
             "count": count,
         })
     return {"days": days, "rows": rows}
+
+
+@router.get("/finance/export")
+async def finance_export(
+    days: int = Query(default=30, ge=1, le=365),
+    session=Depends(get_session),
+):
+    since = datetime.utcnow() - timedelta(days=days)
+    result = await session.execute(
+        select(Transaction)
+        .where(Transaction.created_at >= since)
+        .order_by(Transaction.created_at)
+    )
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "user_id", "type", "amount_usd", "balance_after", "created_at", "description"])
+    for tx in result.scalars().all():
+        writer.writerow([
+            tx.id,
+            tx.user_id,
+            tx.type.value,
+            tx.amount,
+            tx.balance_after,
+            tx.created_at.isoformat(),
+            tx.description or "",
+        ])
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=finance-{days}d.csv"},
+    )
 
 
 @router.get("/users")
@@ -207,6 +242,14 @@ async def promotions(session=Depends(get_session)):
         }
         for promotion in result.scalars().all()
     ]
+
+
+@router.get("/quality")
+async def quality(
+    days: int = Query(default=30, ge=1, le=365),
+    session=Depends(get_session),
+):
+    return await QualityService.report(session, days)
 
 
 @router.get("/audit")

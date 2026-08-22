@@ -18,6 +18,11 @@ async function loadOverview(){
 async function loadTable(view){
   metrics.innerHTML="";
   const data=await api(view==="users"?"/admin/users":`/admin/${view}`);
+  if(view === "quality") {
+    const rows=[...(data.sms||[]).map(r=>({...r,kind:"SMS"})), ...(data.api||[]).map(r=>({...r,kind:"API"}))];
+    panel.innerHTML=`<h2>جودة المزودين <button class="refresh" onclick="load()">تحديث</button></h2>${rows.length?`<div class="table-wrap"><table class="table"><thead><tr><th>النوع</th><th>المزود</th><th>الإجمالي</th><th>ناجحة</th><th>فاشلة</th><th>نسبة النجاح</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.kind)}</td><td>${esc(r.provider||r.provider_id)}</td><td>${esc(r.total)}</td><td>${esc(r.success)}</td><td>${esc(r.failed)}</td><td>${esc(r.success_rate)}%</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">لا توجد طلبات كافية بعد.</div>'}`;
+    return;
+  }
   if(!data.length){panel.innerHTML='<div class="empty">لا توجد بيانات لعرضها.</div>';return;}
   const configs={
     orders:["الطلب","المنتج","المستخدم","السعر","الحالة","التاريخ"],

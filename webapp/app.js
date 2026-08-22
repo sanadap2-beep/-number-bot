@@ -87,7 +87,7 @@ function renderProducts() {
       <button class="buy">شراء عبر Telegram</button>
       <button class="watch">🔔 مراقبة السعر والمخزون</button>
     `;
-    card.querySelector(".buy").onclick = () => selectProduct(product.id);
+    card.querySelector(".buy").onclick = () => selectProduct(product);
     card.querySelector(".watch").onclick = () => watchProduct(product.id);
     root.appendChild(card);
   }
@@ -97,10 +97,30 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 }
 
-function selectProduct(productId) {
-  if (!tg?.sendData) { showMessage("افتح المتجر من داخل Telegram لاختيار المنتج.", true); return; }
-  tg.sendData(JSON.stringify({ action: "select_product", product_id: productId }));
-  tg.close();
+async function selectProduct(product) {
+  if (!tg?.initData) { showMessage("افتح المتجر من داخل Telegram لإتمام الشراء.", true); return; }
+  let target = "";
+  let quantity = 1;
+  if (product.requires_player_id || product.requires_link) {
+    target = window.prompt(product.requires_player_id ? "أدخل Player ID" : "أدخل الرابط", "")?.trim() || "";
+    if (!target) return;
+  }
+  if (product.requires_quantity) {
+    quantity = Number(window.prompt(`الكمية من ${product.min_quantity} إلى ${product.max_quantity}`, String(product.min_quantity)));
+    if (!Number.isInteger(quantity) || quantity < product.min_quantity || quantity > product.max_quantity) {
+      showMessage("الكمية غير صالحة.", true); return;
+    }
+  }
+  try {
+    showMessage("⏳ جاري تنفيذ الطلب...");
+    const result = await api("/checkout", { method: "POST", body: JSON.stringify({ product_id: product.id, target, quantity }) });
+    if (result.delivery) {
+      showMessage(`✅ تم التسليم: ${result.delivery}`);
+    } else {
+      showMessage(`✅ تم إنشاء الطلب #${result.order_id}. الحالة: ${result.status}`);
+    }
+    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+  } catch (error) { showMessage(error.message, true); }
 }
 
 async function watchProduct(productId) {

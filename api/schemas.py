@@ -74,5 +74,19 @@ class WatchIn(BaseModel):
     product_id: int
 
 
+class CheckoutIn(BaseModel):
+    product_id: int
+    target: str = ""
+    quantity: int = Field(default=1, ge=1, le=1_000_000)
+
+
+class CheckoutOut(BaseModel):
+    order_id: int
+    status: str
+    price_usd: Decimal
+    discount_usd: Decimal
+    delivery: str | None = None
+
+
 class ErrorOut(BaseModel):
     detail: str

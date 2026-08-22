@@ -18,6 +18,8 @@ from api.deps import get_current_user, get_session
 from api.schemas import (
     CatalogOut,
     CategoryOut,
+    CheckoutIn,
+    CheckoutOut,
     GiftRedeemIn,
     MeOut,
     OrderOut,
@@ -38,6 +40,7 @@ from database.models import (
     User,
 )
 from database.seed import init_db
+from services.checkout_service import CheckoutError, CheckoutService
 from services.gift_service import GiftCodeError, GiftService
 from services.loyalty_service import LoyaltyService
 from services.promotion_service import PromotionService
@@ -278,6 +281,31 @@ async def orders(
         for order in numbers
     )
     return sorted(output, key=lambda item: item.created_at, reverse=True)[:100]
+
+
+@app.post("/api/v1/checkout", response_model=CheckoutOut)
+async def checkout(
+    payload: CheckoutIn,
+    current_user: User = Depends(get_current_user),
+    session=Depends(get_session),
+):
+    try:
+        result = await CheckoutService.purchase(
+            session,
+            current_user.id,
+            payload.product_id,
+            payload.target.strip(),
+            payload.quantity,
+        )
+    except CheckoutError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CheckoutOut(
+        order_id=result.order.id,
+        status=result.order.status.value,
+        price_usd=result.order.price_usd,
+        discount_usd=result.discount,
+        delivery=result.delivery_value,
+    )
 
 
 @app.get("/api/v1/watches")
