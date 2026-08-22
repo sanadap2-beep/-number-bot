@@ -12,6 +12,7 @@ from database.models import (
     User, DepositRequest, DepositStatus,
     NumberOrder, UnifiedOrder,
     OrderStatus, UnifiedOrderStatus,
+    SupportTicket, SupportTicketStatus,
 )
 from keyboards.admin import admin_back_kb
 from filters.admin_filter import IsAdmin
@@ -93,6 +94,14 @@ async def stats_handler(callback: CallbackQuery, session):
     pending_deposits = (await session.execute(
         select(func.count(DepositRequest.id)).where(
             DepositRequest.status == DepositStatus.PENDING
+        )
+    )).scalar_one()
+
+    open_tickets = (await session.execute(
+        select(func.count(SupportTicket.id)).where(
+            SupportTicket.status.in_(
+                [SupportTicketStatus.OPEN, SupportTicketStatus.IN_PROGRESS]
+            )
         )
     )).scalar_one()
 
@@ -196,7 +205,8 @@ async def stats_handler(callback: CallbackQuery, session):
         f"اليوم: {today_deposits:.2f}$\n"
         f"الأسبوع: {week_deposits:.2f}$\n"
         f"الشهر: {month_deposits:.2f}$\n"
-        f"⏳ معلّقة: {pending_deposits}\n\n"
+        f"⏳ إيداعات معلّقة: {pending_deposits}\n"
+        f"🎫 تذاكر مفتوحة: {open_tickets}\n\n"
         "━━━ 📞 طلبات الأرقام ━━━\n"
         f"اليوم: {today_num_sales}\n"
         f"الإجمالي: {total_num_sales}\n\n"

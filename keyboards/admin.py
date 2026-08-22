@@ -28,6 +28,8 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="🔧 وضع الصيانة", callback_data="admin:maintenance")
     b.button(text="⚙️ الإعدادات العامة", callback_data="admin:settings")
     b.button(text="📜 سجل الإدارة", callback_data="admin:audit")
+    b.button(text="🎫 تذاكر الدعم", callback_data="admin:tickets")
+    b.button(text="🩺 صحة النظام", callback_data="admin:health")
     b.adjust(2)
     return b.as_markup()
 
@@ -147,6 +149,15 @@ def admin_number_order_refund_confirm_kb(order_id: int) -> InlineKeyboardMarkup:
         text="❌ إلغاء",
         callback_data=f"admin:num_order_view:{order_id}",
     )
+    b.adjust(1)
+    return b.as_markup()
+
+
+def admin_health_kb() -> InlineKeyboardMarkup:
+    """أزرار مراقبة صحة النظام."""
+    b = InlineKeyboardBuilder()
+    b.button(text="🔄 تحديث الفحص", callback_data="admin:health:refresh")
+    b.button(text="🔙 لوحة الإدارة", callback_data="admin:main")
     b.adjust(1)
     return b.as_markup()
 
@@ -457,10 +468,33 @@ def admin_pricing_kb() -> InlineKeyboardMarkup:
 
 # ══════════════ الإعدادات ══════════════
 
+def admin_payment_settings_kb(settings_values: dict[str, bool]) -> InlineKeyboardMarkup:
+    """أزرار تشغيل وإيقاف طرق الدفع."""
+    labels = {
+        "payment_shamcash_manual_enabled": "💵 شام كاش يدوي",
+        "payment_stars_enabled": "⭐ نجوم تيليجرام",
+        "payment_usdt_manual_enabled": "₮ USDT يدوي",
+        "payment_shamcash_auto_enabled": "💳 شام كاش تلقائي",
+        "payment_usdt_auto_enabled": "₮ USDT تلقائي",
+        "payment_other_enabled": "📞 طرق أخرى",
+    }
+    b = InlineKeyboardBuilder()
+    for key, label in labels.items():
+        state = "🟢 مفعّل" if settings_values.get(key, False) else "⚪ معطّل"
+        b.button(
+            text=f"{state} {label}",
+            callback_data=f"admin:payment_toggle:{key}",
+        )
+    b.button(text="🔙 الإعدادات", callback_data="admin:settings")
+    b.adjust(1)
+    return b.as_markup()
+
+
 def admin_settings_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(text="🛠 يوزر الدعم", callback_data="admin:set_support")
     b.button(text="💳 طريقة الدفع", callback_data="admin:set_payment")
+    b.button(text="🎛 تفعيل طرق الدفع", callback_data="admin:payment_settings")
     b.button(text="🚨 حد التحويل الكبير", callback_data="admin:set_large_tx")
     b.button(text="⏳ مهلة انتظار الكود", callback_data="admin:set_order_timeout")
     b.button(text="📝 رسالة الترحيب", callback_data="admin:set_welcome")

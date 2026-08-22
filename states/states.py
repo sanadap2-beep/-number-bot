@@ -16,6 +16,14 @@ class ProductSearchStates(StatesGroup):
     waiting_query = State()
 
 
+class SupportTicketStates(StatesGroup):
+    waiting_message = State()
+
+
+class AdminTicketStates(StatesGroup):
+    waiting_reply = State()
+
+
 # ══════════════ الشحن اليدوي - شام كاش ══════════════
 
 class ShamCashManualStates(StatesGroup):

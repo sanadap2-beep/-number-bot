@@ -80,6 +80,13 @@ class ProductStatus(str, enum.Enum):
     INACTIVE = "inactive"
 
 
+class SupportTicketStatus(str, enum.Enum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+
+
 class UnifiedOrderStatus(str, enum.Enum):
     PENDING = "pending"
     PROCESSING = "processing"
@@ -465,6 +472,43 @@ class BroadcastLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
+
+
+class SupportTicket(Base):
+    """تذكرة دعم قابلة للمتابعة من المستخدم والأدمن."""
+    __tablename__ = "support_tickets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    subject: Mapped[str] = mapped_column(String(128))
+    message: Mapped[str] = mapped_column(Text)
+    status: Mapped[SupportTicketStatus] = mapped_column(
+        SAEnum(SupportTicketStatus),
+        default=SupportTicketStatus.OPEN,
+        index=True,
+    )
+    admin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    admin_reply: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        onupdate=func.now(),
+        server_default=func.now(),
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+    admin: Mapped["User | None"] = relationship(foreign_keys=[admin_id])
 
 
 # ══════════════ نظام الأقسام الديناميكي ══════════════

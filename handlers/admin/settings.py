@@ -13,7 +13,11 @@ from states.states import (
     AdminLargeTxStates, AdminOrderTimeoutStates,
     AdminSettingsStates, AdminWelcomeStates,
 )
-from keyboards.admin import admin_settings_kb, admin_back_kb
+from keyboards.admin import (
+    admin_payment_settings_kb,
+    admin_settings_kb,
+    admin_back_kb,
+)
 from filters.admin_filter import IsAdmin
 
 router = Router(name="admin_settings")
@@ -50,6 +54,43 @@ async def settings_menu(callback: CallbackQuery):
         f"💾 قناة البكاب: {backup_ch}\n",
         reply_markup=admin_settings_kb(),
     )
+
+
+_PAYMENT_SETTING_KEYS = (
+    "payment_shamcash_manual_enabled",
+    "payment_stars_enabled",
+    "payment_usdt_manual_enabled",
+    "payment_shamcash_auto_enabled",
+    "payment_usdt_auto_enabled",
+    "payment_other_enabled",
+)
+
+
+@router.callback_query(F.data == "admin:payment_settings")
+async def payment_settings_menu(callback: CallbackQuery):
+    values = {
+        key: await SettingsService.get_bool(key, True)
+        for key in _PAYMENT_SETTING_KEYS
+    }
+    await callback.message.edit_text(
+        "🎛 <b>تفعيل طرق الدفع</b>\n\n"
+        "يمكنك إيقاف أي طريقة مؤقتاً. الطريقة لن تظهر للمستخدمين "
+        "إذا كانت بياناتها الخارجية غير موجودة أيضاً.",
+        reply_markup=admin_payment_settings_kb(values),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:payment_toggle:"))
+async def payment_setting_toggle(callback: CallbackQuery, session):
+    key = callback.data.split(":", 2)[2]
+    if key not in _PAYMENT_SETTING_KEYS:
+        await callback.answer("⚠️ إعداد غير صالح.", show_alert=True)
+        return
+    current = await SettingsService.get_bool(key, True)
+    await SettingsService.set(session, key, "false" if current else "true")
+    await callback.answer("✅ تم تحديث طريقة الدفع.")
+    await payment_settings_menu(callback)
 
 
 # ── يوزر الدعم ──
