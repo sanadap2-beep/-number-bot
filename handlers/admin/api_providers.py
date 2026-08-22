@@ -11,7 +11,6 @@
 - حذف مع تأكيد
 """
 import asyncio
-import json
 import logging
 from decimal import Decimal, InvalidOperation
 
@@ -20,13 +19,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
-from config import settings as cfg
 from database.models import (
     ApiProvider,
     ApiProviderType,
     ApiProtocolType,
     ProviderService,
-    ProviderServiceStatus,
 )
 from services.dynamic_service import DynamicService
 from services.provider_sync_service import (
@@ -234,7 +231,7 @@ async def aprov_url_received(
     await state.update_data(api_url=url)
 
     await message.answer(
-        f"✅ الرابط محفوظ\n\n"
+        "✅ الرابط محفوظ\n\n"
         "الخطوة 5️⃣ من 6️⃣\n\n"
         "🔑 أرسل مفتاح API (API Key):"
     )

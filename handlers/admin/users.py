@@ -117,8 +117,8 @@ async def balance_amount_received(
 ):
     data = await state.get_data()
     try:
-        amount = Decimal(message.text.strip())
-        if amount <= 0:
+        amount = Decimal((message.text or "").strip())
+        if not amount.is_finite() or amount <= 0:
             raise InvalidOperation
     except InvalidOperation:
         await message.answer("⚠️ أرسل رقماً صحيحاً أكبر من صفر.")

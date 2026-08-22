@@ -8,6 +8,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from sqlalchemy import select, desc
+from sqlalchemy.exc import IntegrityError
 
 from database.models import User, Transaction, TransactionType, Transfer
 
@@ -126,7 +127,32 @@ class BalanceService:
                 payment_reference=payment_reference,
             ))
 
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                # A second bot instance may have inserted the same external
+                # payment reference between our check and commit. Recover
+                # idempotently instead of reporting a false payment failure.
+                await session.rollback()
+                if payment_reference:
+                    existing_result = await session.execute(
+                        select(Transaction).where(
+                            Transaction.payment_reference == payment_reference
+                        )
+                    )
+                    existing = existing_result.scalar_one_or_none()
+                    if existing is not None:
+                        if (
+                            existing.user_id != user_id
+                            or existing.amount != amount
+                        ):
+                            raise ValueError(
+                                "مرجع دفعة مستخدم مسبقاً ببيانات مختلفة"
+                            )
+                        user = await session.get(User, user_id)
+                        return user
+                raise
+
             await session.refresh(user)
             return user
 

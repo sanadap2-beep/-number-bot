@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from database.engine import async_session_maker
 from database.models import (
     UnifiedOrder, UnifiedOrderStatus,
-    TransactionType, User,
+    TransactionType,
 )
 from providers.games_provider import (
     GamesProviderClient, GamesProviderError

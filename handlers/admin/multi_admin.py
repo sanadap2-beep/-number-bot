@@ -32,7 +32,7 @@ async def multi_admin_list(
     callback: CallbackQuery, session
 ):
     result = await session.execute(
-        select(User).where(User.is_admin == True)
+        select(User).where(User.is_admin.is_(True))
     )
     admins = result.scalars().all()
 

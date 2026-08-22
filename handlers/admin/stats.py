@@ -12,7 +12,6 @@ from database.models import (
     User, DepositRequest, DepositStatus,
     NumberOrder, UnifiedOrder,
     OrderStatus, UnifiedOrderStatus,
-    Transaction, TransactionType,
 )
 from keyboards.admin import admin_back_kb
 from filters.admin_filter import IsAdmin
@@ -50,7 +49,7 @@ async def stats_handler(callback: CallbackQuery, session):
 
     banned_users = (await session.execute(
         select(func.count(User.id)).where(
-            User.is_banned == True
+            User.is_banned.is_(True)
         )
     )).scalar_one()
 

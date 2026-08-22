@@ -122,9 +122,11 @@ async def set_large_tx_received(
     message: Message, state: FSMContext, session
 ):
     try:
-        val = Decimal(message.text.strip())
+        val = Decimal((message.text or "").strip())
+        if not val.is_finite() or val < 0:
+            raise InvalidOperation
     except InvalidOperation:
-        await message.answer("⚠️ أرسل رقماً صحيحاً.")
+        await message.answer("⚠️ أرسل رقماً صحيحاً غير سالب.")
         return
     await SettingsService.set(
         session, "large_transaction_threshold_usd", str(val)

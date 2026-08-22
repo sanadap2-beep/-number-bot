@@ -50,8 +50,8 @@ async def set_margin_received(
     message: Message, state: FSMContext, session
 ):
     try:
-        margin = Decimal(message.text.strip())
-        if margin < 0:
+        margin = Decimal((message.text or "").strip())
+        if not margin.is_finite() or margin < 0:
             raise InvalidOperation
     except InvalidOperation:
         await message.answer("⚠️ أرسل رقماً صحيحاً.")

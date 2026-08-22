@@ -11,7 +11,7 @@ async def get_active_countries(session) -> list[Country]:
     """يجلب الدول المفعلة مرتبة حسب sort_order ثم الاسم."""
     result = await session.execute(
         select(Country)
-        .where(Country.is_active == True)
+        .where(Country.is_active.is_(True))
         .order_by(Country.sort_order, Country.name_ar)
     )
     return list(result.scalars().all())
@@ -40,7 +40,7 @@ async def get_active_number_services(
     """يجلب خدمات الأرقام المفعلة (واتساب، تيليجرام، إلخ)."""
     result = await session.execute(
         select(NumberService)
-        .where(NumberService.is_active == True)
+        .where(NumberService.is_active.is_(True))
         .order_by(NumberService.sort_order, NumberService.id)
     )
     return list(result.scalars().all())

@@ -27,7 +27,8 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="📢 إذاعة جماعية", callback_data="admin:broadcast")
     b.button(text="🔧 وضع الصيانة", callback_data="admin:maintenance")
     b.button(text="⚙️ الإعدادات العامة", callback_data="admin:settings")
-    b.adjust(2, 2, 2, 2, 2, 2, 2, 2, 2)
+    b.button(text="📜 سجل الإدارة", callback_data="admin:audit")
+    b.adjust(2)
     return b.as_markup()
 
 
@@ -147,6 +148,18 @@ def admin_number_order_refund_confirm_kb(order_id: int) -> InlineKeyboardMarkup:
         callback_data=f"admin:num_order_view:{order_id}",
     )
     b.adjust(1)
+    return b.as_markup()
+
+
+def admin_audit_kb(page: int = 0, has_next: bool = False) -> InlineKeyboardMarkup:
+    """أزرار سجل تعديلات الإدارة."""
+    b = InlineKeyboardBuilder()
+    if page > 0:
+        b.button(text="◀️ السابق", callback_data=f"admin:audit:{page - 1}")
+    if has_next:
+        b.button(text="التالي ▶️", callback_data=f"admin:audit:{page + 1}")
+    b.button(text="🔙 لوحة الإدارة", callback_data="admin:main")
+    b.adjust(2, 1)
     return b.as_markup()
 
 

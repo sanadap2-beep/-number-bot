@@ -1,6 +1,7 @@
 """
 إدارة كوبونات الخصم من لوحة الأدمن.
 """
+import re
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -54,7 +55,14 @@ async def coupon_add_start(
 async def coupon_code_received(
     message: Message, state: FSMContext, session
 ):
-    code = message.text.strip().upper()
+    code = (message.text or "").strip().upper()
+    if not re.fullmatch(r"[A-Z0-9_-]{2,32}", code):
+        await message.answer(
+            "⚠️ الكود يجب أن يكون من 2 إلى 32 رمزاً: "
+            "أحرف إنجليزية أو أرقام أو _ أو -."
+        )
+        return
+
     existing = await CouponService.get_coupon_by_code(
         session, code
     )
@@ -103,9 +111,13 @@ async def coupon_value_received(
     message: Message, state: FSMContext
 ):
     try:
-        value = Decimal(message.text.strip())
-        if value <= 0:
+        value = Decimal((message.text or "").strip())
+        if not value.is_finite() or value <= 0:
             raise InvalidOperation
+        data = await state.get_data()
+        if data.get("coupon_dtype") == "percent" and value > 100:
+            await message.answer("⚠️ النسبة لا يمكن أن تتجاوز 100%.")
+            return
     except InvalidOperation:
         await message.answer("⚠️ أرسل رقماً صحيحاً أكبر من صفر.")
         return
@@ -143,9 +155,11 @@ async def coupon_min_order_received(
     message: Message, state: FSMContext
 ):
     try:
-        min_order = Decimal(message.text.strip())
+        min_order = Decimal((message.text or "").strip())
+        if not min_order.is_finite() or min_order < 0:
+            raise InvalidOperation
     except InvalidOperation:
-        await message.answer("⚠️ أرسل رقماً صحيحاً.")
+        await message.answer("⚠️ أرسل رقماً صحيحاً غير سالب.")
         return
 
     await state.update_data(coupon_min_order=str(min_order))

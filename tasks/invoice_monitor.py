@@ -239,8 +239,8 @@ async def _expire_invoice(
         return
 
     text = (
-        f"⌛ <b>انتهت صلاحية الفاتورة</b>\n\n"
-        f"يمكنك إنشاء فاتورة جديدة إذا رغبت."
+        "⌛ <b>انتهت صلاحية الفاتورة</b>\n\n"
+        "يمكنك إنشاء فاتورة جديدة إذا رغبت."
     )
 
     if invoice.status_chat_id and invoice.status_message_id:

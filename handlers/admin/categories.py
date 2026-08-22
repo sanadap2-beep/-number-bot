@@ -20,7 +20,6 @@ from database.models import (
     Category,
     SubCategory,
     CategoryType,
-    AuditAction,
 )
 from services.audit_service import AuditService
 from services.dynamic_service import DynamicService
@@ -595,7 +594,7 @@ async def cat_delete(
 ):
     """يحذف قسم رئيسي."""
     cat_id = int(callback.data.split(":")[2])
-    category = await session.get(Category, cat_id)
+    category = await DynamicService.get_category(session, cat_id)
 
     if not category:
         await callback.answer(
@@ -1303,7 +1302,7 @@ async def subcat_delete(
 ):
     """يحذف قسم فرعي."""
     sub_id = int(callback.data.split(":")[2])
-    sub = await session.get(SubCategory, sub_id)
+    sub = await DynamicService.get_sub_category(session, sub_id)
 
     if not sub:
         await callback.answer(

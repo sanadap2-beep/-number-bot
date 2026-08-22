@@ -9,8 +9,7 @@ from decimal import Decimal
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from database.models import Coupon, CouponUsage, TransactionType
-from services.balance_service import BalanceService
+from database.models import Coupon, CouponUsage
 
 logger = logging.getLogger(__name__)
 

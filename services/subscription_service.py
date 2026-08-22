@@ -6,7 +6,7 @@ from database.models import MandatoryChannel
 class SubscriptionService:
     @staticmethod
     async def get_active_channels(session):
-        result = await session.execute(select(MandatoryChannel).where(MandatoryChannel.is_active == True))
+        result = await session.execute(select(MandatoryChannel).where(MandatoryChannel.is_active.is_(True)))
         return result.scalars().all()
 
     @staticmethod

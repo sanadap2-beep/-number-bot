@@ -16,17 +16,13 @@ from typing import Any
 from sqlalchemy import select, func, desc, and_, or_
 from sqlalchemy.orm import selectinload
 
-from database.engine import async_session_maker
 from database.models import (
     Product,
     ProductStatus,
     ProductPricingType,
     ProductDisplayType,
     ProviderService,
-    ProviderServiceStatus,
-    ApiProvider,
     SubCategory,
-    Category,
     UnifiedOrder,
     UnifiedOrderStatus,
 )
@@ -630,7 +626,7 @@ class ProductService:
         query = (
             select(Product)
             .options(selectinload(Product.sub_category))
-            .where(Product.is_featured == True)
+            .where(Product.is_featured.is_(True))
         )
 
         if active_only:

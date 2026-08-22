@@ -17,7 +17,7 @@ from sqlalchemy import select, desc, and_
 from sqlalchemy.orm import selectinload
 
 from database.engine import async_session_maker
-from database.models import AuditLog, AuditAction, User
+from database.models import AuditLog, AuditAction
 
 logger = logging.getLogger(__name__)
 

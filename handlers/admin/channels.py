@@ -20,7 +20,7 @@ router.callback_query.filter(IsAdmin())
 async def channels_list(callback: CallbackQuery, session):
     result = await session.execute(
         select(MandatoryChannel).where(
-            MandatoryChannel.is_active == True
+            MandatoryChannel.is_active.is_(True)
         )
     )
     channels = result.scalars().all()

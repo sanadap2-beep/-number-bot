@@ -41,7 +41,7 @@ async def broadcast_content_received(
     bot,
 ):
     result = await session.execute(
-        select(User).where(User.is_banned == False)
+        select(User).where(User.is_banned.is_(False))
     )
     users = result.scalars().all()
 

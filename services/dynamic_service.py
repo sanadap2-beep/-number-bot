@@ -24,7 +24,7 @@ class DynamicService:
         """يجلب كل الأقسام الرئيسية المفعلة مرتبة حسب sort_order."""
         result = await session.execute(
             select(Category)
-            .where(Category.is_active == True)
+            .where(Category.is_active.is_(True))
             .order_by(Category.sort_order, Category.id)
         )
         return list(result.scalars().all())
@@ -105,7 +105,7 @@ class DynamicService:
             select(SubCategory)
             .where(
                 SubCategory.category_id == category_id,
-                SubCategory.is_active == True,
+                SubCategory.is_active.is_(True),
             )
             .order_by(SubCategory.sort_order, SubCategory.id)
         )
@@ -307,7 +307,7 @@ class DynamicService:
         provider_type: ApiProviderType | None = None,
     ) -> list[ApiProvider]:
         """يجلب المزودين المفعلين مرتبين حسب الأولوية."""
-        query = select(ApiProvider).where(ApiProvider.is_active == True)
+        query = select(ApiProvider).where(ApiProvider.is_active.is_(True))
         if provider_type:
             query = query.where(ApiProvider.type == provider_type)
         query = query.order_by(ApiProvider.priority, ApiProvider.id)
@@ -387,7 +387,7 @@ class DynamicService:
         """يجلب خدمات الأرقام المفعلة مرتبة حسب sort_order."""
         result = await session.execute(
             select(NumberService)
-            .where(NumberService.is_active == True)
+            .where(NumberService.is_active.is_(True))
             .order_by(NumberService.sort_order, NumberService.id)
         )
         return list(result.scalars().all())
@@ -475,7 +475,7 @@ class DynamicService:
         """يجلب باقات النجوم المفعلة مرتبة حسب sort_order."""
         result = await session.execute(
             select(StarsPackage)
-            .where(StarsPackage.is_active == True)
+            .where(StarsPackage.is_active.is_(True))
             .order_by(StarsPackage.sort_order, StarsPackage.id)
         )
         return list(result.scalars().all())

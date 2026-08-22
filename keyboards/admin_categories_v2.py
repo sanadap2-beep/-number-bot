@@ -1,7 +1,7 @@
 """
 كل أزرار إدارة الأقسام الرئيسية والفرعية.
 """
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database.models import Category, SubCategory, CategoryType

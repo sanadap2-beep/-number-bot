@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database.models import ProductStatus, ApiProviderType
+from database.models import ProductStatus
 from services.dynamic_service import DynamicService
 from states.states import AdminProductStates
 from keyboards.admin import (
@@ -127,8 +127,8 @@ async def prod_price_received(
     message: Message, state: FSMContext
 ):
     try:
-        price = Decimal(message.text.strip())
-        if price <= 0:
+        price = Decimal((message.text or "").strip())
+        if not price.is_finite() or price <= 0:
             raise InvalidOperation
     except InvalidOperation:
         await message.answer("⚠️ أرسل رقماً صحيحاً أكبر من صفر.")
@@ -147,9 +147,11 @@ async def prod_cost_received(
     message: Message, state: FSMContext, session
 ):
     try:
-        cost = Decimal(message.text.strip())
+        cost = Decimal((message.text or "").strip())
+        if not cost.is_finite() or cost < 0:
+            raise InvalidOperation
     except InvalidOperation:
-        await message.answer("⚠️ أرسل رقماً صحيحاً.")
+        await message.answer("⚠️ أرسل رقماً صحيحاً غير سالب.")
         return
 
     await state.update_data(prod_cost=str(cost))

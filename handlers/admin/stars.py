@@ -76,8 +76,8 @@ async def star_usd_received(
     message: Message, state: FSMContext
 ):
     try:
-        usd = Decimal(message.text.strip())
-        if usd <= 0:
+        usd = Decimal((message.text or "").strip())
+        if not usd.is_finite() or usd <= 0:
             raise InvalidOperation
     except (InvalidOperation, ValueError):
         await message.answer(

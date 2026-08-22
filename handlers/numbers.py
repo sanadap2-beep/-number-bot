@@ -6,33 +6,30 @@
 """
 import logging
 from datetime import datetime, timedelta
-from decimal import Decimal
 
 from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import CallbackQuery
 from sqlalchemy import select, func
 
 from database.models import (
     NumberOrder, OrderStatus, TransactionType,
-    ProviderName, User
+    User
 )
 from providers.manager import (
     provider_manager, ProviderUnavailableError
 )
 from providers.countries import (
     get_active_countries, get_country_by_code,
-    get_active_number_services, get_number_service_by_code,
+    get_number_service_by_code,
 )
 from services.pricing_service import PricingService
 from services.settings_service import SettingsService
 from services.balance_service import BalanceService, InsufficientBalanceError
 from services.notification_service import NotificationService
-from services.cashback_service import CashbackService
 from keyboards.numbers import (
     countries_kb, confirm_purchase_kb,
-    order_actions_kb, code_received_kb,
-    number_services_kb,
+    order_actions_kb,
 )
 from keyboards.main_menu import insufficient_balance_kb
 

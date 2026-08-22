@@ -1,13 +1,11 @@
 """
 كل أزرار إدارة المزودين (V2 - محسّنة).
 """
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database.models import (
     ApiProvider,
-    ApiProtocolType,
-    ApiProviderType,
     ProviderService,
 )
 
@@ -405,7 +403,7 @@ def provider_service_detail_kb(
     )
     b.button(
         text=(
-            f"🔙 رجوع لخدمات المزود"
+            "🔙 رجوع لخدمات المزود"
         ),
         callback_data=(
             f"admin:aprov_services:"

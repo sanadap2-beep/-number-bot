@@ -755,7 +755,7 @@ class UserFavorite(Base):
         ForeignKey("users.id"), index=True
     )
     product_id: Mapped[int] = mapped_column(
-        ForeignKey("products.id"), index=True
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
