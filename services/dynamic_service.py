@@ -40,7 +40,14 @@ class DynamicService:
 
     @staticmethod
     async def get_category(session, category_id: int) -> Category | None:
-        return await session.get(Category, category_id)
+        # Admin details render category.sub_categories; load it explicitly for
+        # AsyncSession instead of triggering unsupported lazy IO.
+        result = await session.execute(
+            select(Category)
+            .options(selectinload(Category.sub_categories))
+            .where(Category.id == category_id)
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def create_category(
@@ -120,7 +127,14 @@ class DynamicService:
     async def get_sub_category(
         session, sub_category_id: int
     ) -> SubCategory | None:
-        return await session.get(SubCategory, sub_category_id)
+        # Admin details read sub.products; eager-load it because lazy loading
+        # through AsyncSession would raise MissingGreenlet at render time.
+        result = await session.execute(
+            select(SubCategory)
+            .options(selectinload(SubCategory.products))
+            .where(SubCategory.id == sub_category_id)
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def create_sub_category(

@@ -1,12 +1,30 @@
 services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   bot:
     build: .
     env_file:
       - .env
     environment:
-      # Keep the SQLite file in a directory mount. Mounting a missing host
-      # file directly can make Docker create a directory at that path.
+      # Keep SQLite and FSM state persistent in Docker.
       DATABASE_URL: sqlite+aiosqlite:////app/data/bot_database.db
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       - ./data:/app/data
     restart: unless-stopped
+
+volumes:
+  redis_data:

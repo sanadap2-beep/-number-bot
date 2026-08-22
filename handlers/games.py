@@ -13,12 +13,12 @@ from decimal import Decimal
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from database.models import (
-    User, UnifiedOrder, UnifiedOrderStatus,
+    User, UserFavorite, UnifiedOrder, UnifiedOrderStatus,
     TransactionType, Product, ProductStatus,
-    CategoryType,
 )
 from services.dynamic_service import DynamicService
 from services.balance_service import BalanceService, InsufficientBalanceError
@@ -26,12 +26,21 @@ from services.notification_service import NotificationService
 from services.settings_service import SettingsService
 from services.coupon_service import CouponService, CouponError
 from services.cashback_service import CashbackService
+from services.product_service import ProductService
 from providers.games_provider import GamesProviderClient, GamesProviderError
 from providers.smm_provider import SMMProviderClient, SMMProviderError
-from states.states import GamesOrderStates, AppsOrderStates, SMMOrderStates
+from states.states import (
+    GamesOrderStates,
+    ProductSearchStates,
+    SMMOrderStates,
+)
 from keyboards.games import (
-    sub_categories_kb, products_kb,
-    product_confirm_kb, product_confirm_with_coupon_kb,
+    sub_categories_kb,
+    products_kb,
+    product_confirm_kb,
+    product_confirm_with_coupon_kb,
+    product_search_results_kb,
+    favorites_kb,
 )
 from keyboards.main_menu import (
     insufficient_balance_kb, confirm_large_order_kb,
@@ -41,6 +50,133 @@ from keyboards.main_menu import (
 logger = logging.getLogger(__name__)
 
 router = Router(name="games")
+
+
+# ══════════════ البحث والمفضلة ══════════════
+
+@router.callback_query(F.data == "menu:search")
+async def search_start(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.answer()
+    await callback.message.edit_text(
+        "🔎 <b>البحث عن خدمة</b>\n\n"
+        "أرسل اسم المنتج أو جزءاً منه (مثال: متابعين، PUBG، شحن):",
+        reply_markup=back_to_main_kb(),
+    )
+    await state.set_state(ProductSearchStates.waiting_query)
+
+
+@router.message(ProductSearchStates.waiting_query)
+async def search_query_received(
+    message: Message,
+    state: FSMContext,
+    session,
+):
+    query_text = (message.text or "").strip()
+    if len(query_text) < 2:
+        await message.answer("⚠️ أرسل كلمتين على الأقل للبحث.")
+        return
+
+    products = await ProductService.search_products(
+        session,
+        query_text,
+        limit=20,
+        active_only=True,
+    )
+    await state.clear()
+    if not products:
+        await message.answer(
+            f"🔎 لا توجد نتائج لـ <b>{query_text}</b>.",
+            reply_markup=back_to_main_kb(),
+        )
+        return
+
+    await message.answer(
+        f"🔎 <b>نتائج البحث عن: {query_text}</b>\n\n"
+        f"تم العثور على {len(products)} منتج:",
+        reply_markup=product_search_results_kb(products),
+    )
+
+
+@router.callback_query(F.data == "menu:favorites")
+async def favorites_list(
+    callback: CallbackQuery,
+    session,
+    db_user: User,
+):
+    result = await session.execute(
+        select(UserFavorite)
+        .options(selectinload(UserFavorite.product))
+        .where(UserFavorite.user_id == db_user.id)
+        .order_by(UserFavorite.created_at.desc())
+    )
+    products = [
+        favorite.product
+        for favorite in result.scalars().all()
+        if favorite.product and favorite.product.status == ProductStatus.ACTIVE
+    ]
+    await callback.answer()
+    if not products:
+        await callback.message.edit_text(
+            "⭐ لا توجد منتجات مفضلة لديك حالياً.",
+            reply_markup=back_to_main_kb(),
+        )
+        return
+    await callback.message.edit_text(
+        "⭐ <b>منتجاتي المفضلة</b>",
+        reply_markup=favorites_kb(products),
+    )
+
+
+@router.callback_query(F.data.startswith("favorite:toggle:"))
+async def favorite_toggle(
+    callback: CallbackQuery,
+    session,
+    db_user: User,
+):
+    product_id = int(callback.data.split(":")[2])
+    product = await session.get(Product, product_id)
+    if not product or product.status != ProductStatus.ACTIVE:
+        await callback.answer("⚠️ المنتج غير متاح.", show_alert=True)
+        return
+
+    result = await session.execute(
+        select(UserFavorite).where(
+            UserFavorite.user_id == db_user.id,
+            UserFavorite.product_id == product_id,
+        )
+    )
+    favorite = result.scalar_one_or_none()
+    if favorite:
+        await session.delete(favorite)
+        message = "🗑 تمت إزالة المنتج من المفضلة."
+    else:
+        session.add(
+            UserFavorite(user_id=db_user.id, product_id=product_id)
+        )
+        message = "⭐ تمت إضافة المنتج إلى المفضلة."
+    await session.commit()
+    await callback.answer(message, show_alert=True)
+
+
+@router.callback_query(F.data.startswith("favorite:remove:"))
+async def favorite_remove(
+    callback: CallbackQuery,
+    session,
+    db_user: User,
+):
+    product_id = int(callback.data.split(":")[2])
+    result = await session.execute(
+        select(UserFavorite).where(
+            UserFavorite.user_id == db_user.id,
+            UserFavorite.product_id == product_id,
+        )
+    )
+    favorite = result.scalar_one_or_none()
+    if favorite:
+        await session.delete(favorite)
+        await session.commit()
+    await favorites_list(callback, session, db_user)
 
 
 # ══════════════ اختيار القسم الرئيسي ══════════════
@@ -145,17 +281,8 @@ async def product_selected(
 
     await callback.answer()
 
-    # ── فحص الرصيد ──
-    if db_user.balance < product.price_usd:
-        notifier = NotificationService(callback.bot)
-        await notifier.notify_insufficient_balance(
-            user_telegram_id=db_user.telegram_id,
-            required_usd=str(product.price_usd),
-            current_balance_usd=f"{db_user.balance:.2f}",
-            reply_markup=insufficient_balance_kb(),
-        )
-        return
-
+    # السعر المعروض قد يكون لكل 1000 أو لكل حد أدنى؛ يتم فحص الرصيد
+    # بعد معرفة الكمية الفعلية في _finalize_purchase.
     sub_cat = product.sub_category
 
     # ── تحديد نوع الإدخال المطلوب ──

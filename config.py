@@ -53,8 +53,10 @@ class Settings(BaseSettings):
     SHAMCASH_MANUAL_ADDRESS: str = ""
     SHAMCASH_MANUAL_NAME: str = ""
 
-    # ── قاعدة البيانات ──
+    # ── قاعدة البيانات والتخزين ──
     DATABASE_URL: str = "sqlite+aiosqlite:///./bot_database.db"
+    # اختياري: يحفظ حالات المحادثة بعد إعادة التشغيل عند استخدام Redis.
+    REDIS_URL: str = ""
 
     # ── الإعدادات المالية الافتراضية (بالدولار فقط) ──
     DEFAULT_PROFIT_MARGIN_PERCENT: Decimal = Decimal("50")

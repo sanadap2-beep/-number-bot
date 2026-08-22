@@ -6,6 +6,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select, func, desc
+from sqlalchemy.orm import selectinload
 
 from database.models import (
     User, NumberOrder, UnifiedOrder,
@@ -179,6 +180,7 @@ async def my_unified_orders(
 
     result = await session.execute(
         select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.product))
         .where(UnifiedOrder.user_id == db_user.id)
         .order_by(desc(UnifiedOrder.created_at))
         .limit(per_page)
@@ -221,17 +223,68 @@ async def my_unified_orders(
         lines.append(line)
 
     kb = InlineKeyboardBuilder()
+    for order in orders:
+        kb.button(
+            text=f"🔎 تفاصيل الطلب #{order.id}",
+            callback_data=f"my_uni_order:{order.id}",
+        )
     if page > 0:
         kb.button(text="◀️ السابق", callback_data=f"my_uni_orders:{page - 1}")
     if page < total_pages - 1:
         kb.button(text="التالي ▶️", callback_data=f"my_uni_orders:{page + 1}")
     kb.button(text="🔙 رجوع لحسابي", callback_data="menu:account")
-    kb.adjust(2, 1)
+    kb.adjust(1, 2, 1)
 
     await callback.message.edit_text(
         "\n".join(lines),
         reply_markup=kb.as_markup(),
     )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("my_uni_order:"))
+async def unified_order_detail(
+    callback: CallbackQuery,
+    session,
+    db_user: User,
+):
+    order_id = int(callback.data.split(":")[1])
+    result = await session.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.product))
+        .where(
+            UnifiedOrder.id == order_id,
+            UnifiedOrder.user_id == db_user.id,
+        )
+    )
+    order = result.scalar_one_or_none()
+    if order is None:
+        await callback.answer("⚠️ الطلب غير موجود.", show_alert=True)
+        return
+
+    status_label = UNIFIED_STATUS_LABELS.get(
+        order.status, getattr(order.status, "value", str(order.status))
+    )
+    product_name = order.product.name_ar if order.product else "—"
+    text = (
+        f"🛒 <b>تفاصيل الطلب #{order.id}</b>\n\n"
+        f"📦 المنتج: <b>{product_name}</b>\n"
+        f"📊 الحالة: {status_label}\n"
+        f"💰 المبلغ: <b>{order.price_usd}$</b>\n"
+        f"🎯 الهدف: <code>{order.target or '—'}</code>\n"
+        f"📊 الكمية: {order.quantity}\n"
+        f"🆔 رقم المزود: <code>{order.external_order_id or '—'}</code>\n"
+        f"📝 الحالة التفصيلية: {order.status_message or '—'}\n"
+        f"📅 التاريخ: {order.created_at.strftime('%Y-%m-%d %H:%M')}"
+    )
+    if order.remains is not None:
+        text += f"\n⏳ المتبقي: {order.remains}"
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🔙 رجوع للطلبات", callback_data="my_uni_orders:0")
+    kb.button(text="🏠 القائمة الرئيسية", callback_data="back_to_main")
+    kb.adjust(1)
+    await callback.message.edit_text(text, reply_markup=kb.as_markup())
     await callback.answer()
 
 

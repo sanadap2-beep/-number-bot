@@ -12,6 +12,10 @@ class DepositStates(StatesGroup):
     waiting_tx_number = State()
 
 
+class ProductSearchStates(StatesGroup):
+    waiting_query = State()
+
+
 # ══════════════ الشحن اليدوي - شام كاش ══════════════
 
 class ShamCashManualStates(StatesGroup):

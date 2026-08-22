@@ -10,6 +10,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 def admin_main_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(text="📊 إحصائيات البوت", callback_data="admin:stats")
+    b.button(text="📦 إدارة الطلبات", callback_data="admin:orders")
+    b.button(text="📞 طلبات الأرقام", callback_data="admin:number_orders")
     b.button(text="📂 إدارة الأقسام", callback_data="admin:categories")
     b.button(text="📦 إدارة المنتجات", callback_data="admin:products_menu")
     b.button(text="📞 إدارة خدمات الأرقام", callback_data="admin:number_services")
@@ -25,7 +27,126 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="📢 إذاعة جماعية", callback_data="admin:broadcast")
     b.button(text="🔧 وضع الصيانة", callback_data="admin:maintenance")
     b.button(text="⚙️ الإعدادات العامة", callback_data="admin:settings")
-    b.adjust(2, 2, 2, 2, 2, 2, 2, 2)
+    b.adjust(2, 2, 2, 2, 2, 2, 2, 2, 2)
+    return b.as_markup()
+
+
+def admin_orders_kb(orders, page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+    """قائمة الطلبات الموحدة للأدمن."""
+    b = InlineKeyboardBuilder()
+    for order in orders:
+        product_name = (
+            order.product.name_ar[:24]
+            if order.product
+            else "منتج"
+        )
+        status = order.status.value
+        b.button(
+            text=f"#{order.id} {product_name} · {status}",
+            callback_data=f"admin:order_view:{order.id}",
+        )
+    if page > 0:
+        b.button(
+            text="◀️ السابق",
+            callback_data=f"admin:orders:{page - 1}",
+        )
+    if page < total_pages - 1:
+        b.button(
+            text="التالي ▶️",
+            callback_data=f"admin:orders:{page + 1}",
+        )
+    b.button(text="🔙 اللوحة الرئيسية", callback_data="admin:main")
+    b.adjust(1, 2, 1)
+    return b.as_markup()
+
+
+def admin_order_detail_kb(order) -> InlineKeyboardMarkup:
+    """أزرار إدارة طلب موحد واحد."""
+    b = InlineKeyboardBuilder()
+    status = getattr(order.status, "value", order.status)
+    if status in ("pending", "processing"):
+        b.button(
+            text="✅ تعليم كمكتمل",
+            callback_data=f"admin:order_complete:{order.id}",
+        )
+        b.button(
+            text="↩️ استرجاع الرصيد",
+            callback_data=f"admin:order_refund_ask:{order.id}",
+        )
+    b.button(text="🔙 الطلبات", callback_data="admin:orders")
+    b.adjust(2, 1)
+    return b.as_markup()
+
+
+def admin_number_orders_kb(
+    orders,
+    page: int = 0,
+    total_pages: int = 1,
+) -> InlineKeyboardMarkup:
+    """قائمة طلبات أرقام SMS للأدمن."""
+    b = InlineKeyboardBuilder()
+    for order in orders:
+        b.button(
+            text=f"#{order.id} {order.phone_number} · {order.status.value}",
+            callback_data=f"admin:num_order_view:{order.id}",
+        )
+    if page > 0:
+        b.button(
+            text="◀️ السابق",
+            callback_data=f"admin:number_orders:{page - 1}",
+        )
+    if page < total_pages - 1:
+        b.button(
+            text="التالي ▶️",
+            callback_data=f"admin:number_orders:{page + 1}",
+        )
+    b.button(text="🔙 اللوحة الرئيسية", callback_data="admin:main")
+    b.adjust(1, 2, 1)
+    return b.as_markup()
+
+
+def admin_order_refund_confirm_kb(order_id: int) -> InlineKeyboardMarkup:
+    """تأكيد استرجاع طلب موحد."""
+    b = InlineKeyboardBuilder()
+    b.button(
+        text="✅ نعم، استرجع الرصيد",
+        callback_data=f"admin:order_refund:{order_id}",
+    )
+    b.button(
+        text="❌ إلغاء",
+        callback_data=f"admin:order_view:{order_id}",
+    )
+    b.adjust(1)
+    return b.as_markup()
+
+
+def admin_number_order_detail_kb(order) -> InlineKeyboardMarkup:
+    """أزرار إدارة طلب رقم واحد."""
+    b = InlineKeyboardBuilder()
+    status = getattr(order.status, "value", order.status)
+    if status == "pending":
+        b.button(
+            text="❌ إلغاء واسترجاع الرصيد",
+            callback_data=f"admin:num_order_refund_ask:{order.id}",
+        )
+    b.button(text="🔙 طلبات الأرقام", callback_data="admin:number_orders")
+    b.button(text="🏠 اللوحة الرئيسية", callback_data="admin:main")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def admin_number_order_refund_confirm_kb(order_id: int) -> InlineKeyboardMarkup:
+    """تأكيد استرجاع طلب رقم."""
+    b = InlineKeyboardBuilder()
+    b.button(
+        text="✅ نعم، استرجع الرصيد",
+        callback_data=f"admin:num_order_refund:{order_id}",
+    )
+    b.button(
+        text="❌ إلغاء",
+        callback_data=f"admin:num_order_view:{order_id}",
+    )
+    b.adjust(1)
     return b.as_markup()
 
 

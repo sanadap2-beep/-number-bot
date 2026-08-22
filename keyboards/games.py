@@ -51,7 +51,7 @@ def product_confirm_kb(
     product_id: int,
     sub_category_id: int,
 ) -> InlineKeyboardMarkup:
-    """تأكيد شراء منتج."""
+    """تأكيد شراء منتج مع اختصار للمفضلة."""
     b = InlineKeyboardBuilder()
     b.button(
         text="✅ تأكيد الشراء",
@@ -62,10 +62,45 @@ def product_confirm_kb(
         callback_data=f"prod_coupon:{product_id}",
     )
     b.button(
+        text="⭐ إضافة/إزالة من المفضلة",
+        callback_data=f"favorite:toggle:{product_id}",
+    )
+    b.button(
         text="🔙 رجوع",
         callback_data=f"subcat:{sub_category_id}",
     )
     b.adjust(1)
+    return b.as_markup()
+
+
+def product_search_results_kb(products) -> InlineKeyboardMarkup:
+    """نتائج بحث المنتجات للمستخدم."""
+    b = InlineKeyboardBuilder()
+    for product in products:
+        b.button(
+            text=f"{product.name_ar} - {product.price_usd}$",
+            callback_data=f"prod:{product.id}",
+        )
+    b.button(text="🔎 بحث جديد", callback_data="menu:search")
+    b.button(text="🔙 القائمة الرئيسية", callback_data="back_to_main")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def favorites_kb(products) -> InlineKeyboardMarkup:
+    """قائمة المنتجات المفضلة مع حذف سريع."""
+    b = InlineKeyboardBuilder()
+    for product in products:
+        b.button(
+            text=f"📦 {product.name_ar} - {product.price_usd}$",
+            callback_data=f"prod:{product.id}",
+        )
+        b.button(
+            text="🗑 إزالة",
+            callback_data=f"favorite:remove:{product.id}",
+        )
+    b.button(text="🔙 القائمة الرئيسية", callback_data="back_to_main")
+    b.adjust(2, 1)
     return b.as_markup()
 
 

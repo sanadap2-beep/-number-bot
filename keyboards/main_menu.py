@@ -56,6 +56,14 @@ def build_main_menu(
         callback_data="menu:transfer",
     )
     b.button(
+        text="🔎 البحث عن خدمة",
+        callback_data="menu:search",
+    )
+    b.button(
+        text="⭐ المفضلة",
+        callback_data="menu:favorites",
+    )
+    b.button(
         text="🛠 الدعم الفني",
         callback_data="menu:support",
     )

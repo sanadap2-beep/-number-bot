@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from config import settings
@@ -40,6 +41,8 @@ from handlers.admin import (
     coupons as admin_coupons,
     multi_admin as admin_multi_admin,
     number_services as admin_number_services,
+    number_orders as admin_number_orders,
+    orders as admin_orders,
     stars as admin_stars,
 )
 
@@ -63,7 +66,12 @@ bot = Bot(
     token=settings.BOT_TOKEN,
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
-dp = Dispatcher(storage=MemoryStorage())
+storage = (
+    RedisStorage.from_url(settings.REDIS_URL)
+    if settings.REDIS_URL
+    else MemoryStorage()
+)
+dp = Dispatcher(storage=storage)
 
 
 def register_middlewares():
@@ -107,6 +115,8 @@ def register_routers():
     dp.include_router(admin_coupons.router)
     dp.include_router(admin_multi_admin.router)
     dp.include_router(admin_number_services.router)
+    dp.include_router(admin_number_orders.router)
+    dp.include_router(admin_orders.router)
     dp.include_router(admin_stars.router)
 
 
@@ -179,6 +189,8 @@ async def main():
         scheduler.shutdown(wait=False)
         await plisio_client.close()
         await bot.session.close()
+        if hasattr(storage, "close"):
+            await storage.close()
         logger.info("🛑 البوت توقف.")
 
 

@@ -16,6 +16,7 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
+from config import settings
 from database.models import (
     DepositRequest, DepositStatus, User, TransactionType,
     AutoInvoice, AutoInvoiceMethod, AutoInvoiceStatus,
@@ -75,20 +76,41 @@ async def _show_deposit_menu(target, state: FSMContext):
     """يعرض قائمة طرق الدفع الست."""
     await state.clear()
 
-    shamcash_manual = await SettingsService.get_bool(
-        "payment_shamcash_manual_enabled", True
+    shamcash_manual = (
+        await SettingsService.get_bool(
+            "payment_shamcash_manual_enabled", True
+        )
+        and bool(settings.SHAMCASH_MANUAL_ADDRESS)
     )
     stars = await SettingsService.get_bool(
         "payment_stars_enabled", True
     )
-    usdt_manual = await SettingsService.get_bool(
-        "payment_usdt_manual_enabled", True
+    usdt_manual = (
+        await SettingsService.get_bool(
+            "payment_usdt_manual_enabled", True
+        )
+        and any(
+            (
+                settings.USDT_TRC20_ADDRESS,
+                settings.USDT_ERC20_ADDRESS,
+                settings.USDT_BEP20_ADDRESS,
+            )
+        )
     )
-    shamcash_auto = await SettingsService.get_bool(
-        "payment_shamcash_auto_enabled", True
+    shamcash_auto = (
+        await SettingsService.get_bool(
+            "payment_shamcash_auto_enabled", True
+        )
+        and bool(
+            settings.SAM_API_KEY
+            and settings.SAM_API_WALLET_ADDRESS
+        )
     )
-    usdt_auto = await SettingsService.get_bool(
-        "payment_usdt_auto_enabled", True
+    usdt_auto = (
+        await SettingsService.get_bool(
+            "payment_usdt_auto_enabled", True
+        )
+        and bool(settings.PLISIO_SECRET_KEY)
     )
     other = await SettingsService.get_bool(
         "payment_other_enabled", True
