@@ -12,6 +12,7 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="📊 إحصائيات البوت", callback_data="admin:stats")
     b.button(text="📦 إدارة الطلبات", callback_data="admin:orders")
     b.button(text="📞 طلبات الأرقام", callback_data="admin:number_orders")
+    b.button(text="💳 طلبات الشحن", callback_data="admin:deposits")
     b.button(text="📂 إدارة الأقسام", callback_data="admin:categories")
     b.button(text="📦 إدارة المنتجات", callback_data="admin:products_menu")
     b.button(text="📞 إدارة خدمات الأرقام", callback_data="admin:number_services")
@@ -80,6 +81,44 @@ def admin_order_detail_kb(order) -> InlineKeyboardMarkup:
             callback_data=f"admin:order_refund_ask:{order.id}",
         )
     b.button(text="🔙 الطلبات", callback_data="admin:orders")
+    b.adjust(2, 1)
+    return b.as_markup()
+
+
+def admin_deposits_kb(
+    deposits,
+    page: int = 0,
+    total_pages: int = 1,
+) -> InlineKeyboardMarkup:
+    """قائمة طلبات الشحن للأدمن."""
+    b = InlineKeyboardBuilder()
+    for deposit in deposits:
+        status = getattr(deposit.status, "value", deposit.status)
+        b.button(
+            text=f"#{deposit.id} {deposit.amount_usd}$ · {status}",
+            callback_data=f"admin:deposit_view:{deposit.id}",
+        )
+    if page > 0:
+        b.button(
+            text="◀️ السابق",
+            callback_data=f"admin:deposits:{page - 1}",
+        )
+    if page < total_pages - 1:
+        b.button(
+            text="التالي ▶️",
+            callback_data=f"admin:deposits:{page + 1}",
+        )
+    b.button(text="🔙 لوحة الإدارة", callback_data="admin:main")
+    b.adjust(1, 2, 1)
+    return b.as_markup()
+
+
+def admin_deposit_view_kb(deposit_id: int, pending: bool) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    if pending:
+        b.button(text="✅ قبول وإضافة الرصيد", callback_data=f"deposit_accept:{deposit_id}")
+        b.button(text="❌ رفض الطلب", callback_data=f"deposit_reject:{deposit_id}")
+    b.button(text="🔙 طلبات الشحن", callback_data="admin:deposits")
     b.adjust(2, 1)
     return b.as_markup()
 

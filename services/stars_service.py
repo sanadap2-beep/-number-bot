@@ -3,7 +3,7 @@
 تنشئ فواتير الدفع بالنجوم وتعالج الدفع الناجح.
 """
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from aiogram import Bot
 from aiogram.types import LabeledPrice, Message, PreCheckoutQuery
@@ -43,7 +43,10 @@ class StarsService:
                     f"شحن رصيد بقيمة {package.usd_amount}$ "
                     f"مقابل {package.stars_amount} نجمة"
                 ),
-                payload=f"stars_pkg:{package.id}",
+                payload=(
+                    f"stars_pkg:{package.id}:{package.stars_amount}:"
+                    f"{package.usd_amount}"
+                ),
                 currency="XTR",
                 prices=[
                     LabeledPrice(
@@ -86,9 +89,14 @@ class StarsService:
             logger.error(f"payload غير معروف: {payload}")
             return Decimal("0")
 
+        parts = payload.split(":")
         try:
-            package_id = int(payload.split(":")[1])
-        except (ValueError, IndexError):
+            package_id = int(parts[1])
+            invoice_stars = int(parts[2])
+            invoice_usd = Decimal(parts[3])
+            if not invoice_usd.is_finite() or invoice_usd <= 0:
+                raise ValueError
+        except (ValueError, IndexError, InvalidOperation):
             logger.error(f"payload غير صالح: {payload}")
             return Decimal("0")
 
@@ -101,7 +109,20 @@ class StarsService:
             )
             return Decimal("0")
 
-        amount_usd = package.usd_amount
+        if (
+            payment.currency != "XTR"
+            or invoice_stars != package.stars_amount
+            or payment.total_amount != invoice_stars
+            or not payment.telegram_payment_charge_id
+        ):
+            logger.error(
+                "بيانات دفع نجوم غير مطابقة للباقة "
+                f"{package_id}: currency={payment.currency}, "
+                f"amount={payment.total_amount}"
+            )
+            return Decimal("0")
+
+        amount_usd = invoice_usd
 
         await BalanceService.add_balance(
             session=session,

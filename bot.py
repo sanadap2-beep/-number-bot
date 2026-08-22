@@ -30,6 +30,7 @@ from handlers.admin import (
     broadcast as admin_broadcast,
     channels as admin_channels,
     countries as admin_countries,
+    deposits as admin_deposits,
     users as admin_users,
     pricing as admin_pricing,
     providers as admin_providers,
@@ -112,6 +113,7 @@ def register_routers():
     dp.include_router(admin_broadcast.router)
     dp.include_router(admin_channels.router)
     dp.include_router(admin_countries.router)
+    dp.include_router(admin_deposits.router)
     dp.include_router(admin_users.router)
     dp.include_router(admin_pricing.router)
     dp.include_router(admin_providers.router)

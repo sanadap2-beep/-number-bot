@@ -304,7 +304,7 @@ class DepositRequest(Base):
         String(255), nullable=True
     )
     proof_tx_number: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
+        String(255), nullable=True, index=True
     )
     payment_method: Mapped[str | None] = mapped_column(
         String(64), nullable=True
@@ -1112,7 +1112,7 @@ class AutoInvoice(Base):
         default=AutoInvoiceStatus.PENDING,
     )
     transaction_ref: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
+        String(255), nullable=True, index=True
     )
 
     status_chat_id: Mapped[int | None] = mapped_column(

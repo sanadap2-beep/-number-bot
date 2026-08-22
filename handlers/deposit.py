@@ -261,7 +261,14 @@ async def deposit_accept(
             reply_markup=None,
         )
     except Exception:
-        pass
+        try:
+            await callback.message.edit_text(
+                (callback.message.text or "")
+                + "\n\n✅ <b>تم القبول وإضافة الرصيد.</b>",
+                reply_markup=None,
+            )
+        except Exception:
+            pass
 
     await callback.answer("✅ تم قبول الطلب وإضافة الرصيد.")
     logger.info(
@@ -319,7 +326,14 @@ async def deposit_reject(
             reply_markup=None,
         )
     except Exception:
-        pass
+        try:
+            await callback.message.edit_text(
+                (callback.message.text or "")
+                + "\n\n❌ <b>تم رفض الطلب.</b>",
+                reply_markup=None,
+            )
+        except Exception:
+            pass
 
     await callback.answer("❌ تم رفض الطلب.")
     logger.info(
@@ -401,6 +415,21 @@ async def deposit_tx_number_received(
     amount_usd = Decimal(data["amount_usd"])
     photo_file_id = data["photo_file_id"]
     tx_number = message.text.strip()
+
+    duplicate = await session.execute(
+        select(DepositRequest.id).where(
+            DepositRequest.proof_tx_number == tx_number,
+            DepositRequest.status.in_(
+                [DepositStatus.PENDING, DepositStatus.APPROVED]
+            ),
+        ).limit(1)
+    )
+    if duplicate.scalar_one_or_none() is not None:
+        await message.answer(
+            "⚠️ رقم العملية مستخدم مسبقاً أو قيد المراجعة."
+        )
+        await state.clear()
+        return
 
     deposit = DepositRequest(
         user_id=db_user.id,

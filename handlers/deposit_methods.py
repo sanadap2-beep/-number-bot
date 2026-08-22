@@ -11,10 +11,12 @@ import json
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from uuid import uuid4
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+from sqlalchemy import select
 
 from config import settings
 from database.models import (
@@ -68,6 +70,18 @@ async def _get_owned_invoice(session, invoice_id: int, user_id: int):
     if invoice is None or invoice.user_id != user_id:
         return None
     return invoice
+
+
+async def _proof_already_submitted(session, proof: str) -> bool:
+    result = await session.execute(
+        select(DepositRequest.id).where(
+            DepositRequest.proof_tx_number == proof,
+            DepositRequest.status.in_(
+                [DepositStatus.PENDING, DepositStatus.APPROVED]
+            ),
+        ).limit(1)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 # ══════════════ قائمة طرق الدفع الست ══════════════
@@ -291,6 +305,13 @@ async def shamcash_manual_tx_received(
     photo_file_id = data["photo_file_id"]
     tx_number = message.text.strip()
 
+    if await _proof_already_submitted(session, tx_number):
+        await message.answer(
+            "⚠️ رقم العملية مستخدم مسبقاً أو قيد المراجعة."
+        )
+        await state.clear()
+        return
+
     deposit = DepositRequest(
         user_id=db_user.id,
         amount_usd=amount_usd,
@@ -467,6 +488,13 @@ async def usdt_manual_tx_received(
     photo_file_id = data["photo_file_id"]
     network = data["network"]
     tx_hash = message.text.strip()
+
+    if await _proof_already_submitted(session, tx_hash):
+        await message.answer(
+            "⚠️ TX Hash مستخدم مسبقاً أو قيد المراجعة."
+        )
+        await state.clear()
+        return
 
     deposit = DepositRequest(
         user_id=db_user.id,
@@ -738,6 +766,18 @@ async def shamcash_auto_tx_received(
         await message.answer("⚠️ أرسل رقم العملية.")
         return
 
+    reused_result = await session.execute(
+        select(AutoInvoice).where(
+            AutoInvoice.transaction_ref == tx_ref,
+            AutoInvoice.status == AutoInvoiceStatus.PAID,
+        )
+    )
+    if reused_result.scalar_one_or_none() is not None:
+        await message.answer(
+            "⚠️ رقم العملية مستخدم مسبقاً ولا يمكن استخدامه مرة أخرى."
+        )
+        return
+
     data = await state.get_data()
     invoice_id = data.get("invoice_id")
     invoice = await _get_owned_invoice(
@@ -990,10 +1030,7 @@ async def usdt_auto_amount_received(
 
     await message.answer("⏳ جاري إنشاء الفاتورة...")
 
-    order_id = (
-        f"user_{db_user.id}_"
-        f"{int(datetime.utcnow().timestamp())}"
-    )
+    order_id = f"user_{db_user.id}_{uuid4().hex[:12]}"
 
     try:
         payment_data = await plisio_client.create_payment(
