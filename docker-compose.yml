@@ -1,0 +1,12 @@
+services:
+  bot:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # Keep the SQLite file in a directory mount. Mounting a missing host
+      # file directly can make Docker create a directory at that path.
+      DATABASE_URL: sqlite+aiosqlite:////app/data/bot_database.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
