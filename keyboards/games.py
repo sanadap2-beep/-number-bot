@@ -66,6 +66,10 @@ def product_confirm_kb(
         callback_data=f"favorite:toggle:{product_id}",
     )
     b.button(
+        text="🔔 تنبيه السعر/المخزون",
+        callback_data=f"watch:toggle:{product_id}",
+    )
+    b.button(
         text="🔙 رجوع",
         callback_data=f"subcat:{sub_category_id}",
     )

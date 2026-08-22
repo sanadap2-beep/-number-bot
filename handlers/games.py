@@ -31,6 +31,7 @@ from services.coupon_service import CouponService, CouponError
 from services.cashback_service import CashbackService
 from services.product_service import ProductService
 from services.promotion_service import PromotionService
+from services.watch_service import WatchService
 from protocols.base import ProtocolError
 from protocols.factory import ProtocolFactory
 from states.states import (
@@ -161,6 +162,24 @@ async def favorite_toggle(
         message = "⭐ تمت إضافة المنتج إلى المفضلة."
     await session.commit()
     await callback.answer(message, show_alert=True)
+
+
+@router.callback_query(F.data.startswith("watch:toggle:"))
+async def watch_toggle(
+    callback: CallbackQuery,
+    session,
+    db_user: User,
+):
+    product_id = int(callback.data.split(":")[2])
+    try:
+        enabled = await WatchService.toggle(session, db_user.id, product_id)
+    except ValueError as exc:
+        await callback.answer(str(exc), show_alert=True)
+        return
+    await callback.answer(
+        "🔔 تم تفعيل التنبيه." if enabled else "🔕 تم إلغاء التنبيه.",
+        show_alert=True,
+    )
 
 
 @router.callback_query(F.data.startswith("favorite:remove:"))

@@ -13,6 +13,7 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="📦 إدارة الطلبات", callback_data="admin:orders")
     b.button(text="📞 طلبات الأرقام", callback_data="admin:number_orders")
     b.button(text="💳 طلبات الشحن", callback_data="admin:deposits")
+    b.button(text="🎁 بطاقات الهدايا", callback_data="admin:gift_codes")
     b.button(text="📈 طلبات السوق", callback_data="admin:market_requests")
     b.button(text="📂 إدارة الأقسام", callback_data="admin:categories")
     b.button(text="📦 إدارة المنتجات", callback_data="admin:products_menu")

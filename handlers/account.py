@@ -5,18 +5,21 @@
 from html import escape
 
 from aiogram import Router, F
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
 
 from database.models import (
-    User, NumberOrder, UnifiedOrder, DigitalInventoryItem,
-    OrderStatus, UnifiedOrderStatus
+    User, NumberOrder, UnifiedOrder, DigitalInventoryItem, ProductReview,
+    OrderStatus, UnifiedOrderStatus, ProductStatus
 )
 from services.balance_service import BalanceService
 from services.cashback_service import CashbackService
 from services.inventory_service import InventoryError, InventoryService
+from services.watch_service import WatchService
+from keyboards.games import product_confirm_kb
 
 router = Router(name="account")
 
@@ -59,8 +62,9 @@ def _account_kb() -> InlineKeyboardBuilder:
     kb.button(text="📋 طلبات الأرقام", callback_data="my_num_orders:0")
     kb.button(text="🛒 طلبات أخرى", callback_data="my_uni_orders:0")
     kb.button(text="📊 سجل المعاملات", callback_data="my_transactions:0")
+    kb.button(text="🔔 تنبيهاتي", callback_data="my_watches")
     kb.button(text="🔙 رجوع للقائمة", callback_data="back_to_main")
-    kb.adjust(2, 1, 1)
+    kb.adjust(2, 2, 1)
     return kb
 
 
@@ -107,6 +111,30 @@ async def _send_account(
         f"📅 تاريخ انضمامك: {db_user.joined_at.strftime('%Y-%m-%d')}",
         reply_markup=kb.as_markup(),
     )
+
+
+@router.callback_query(F.data == "my_watches")
+async def my_watches(callback: CallbackQuery, session, db_user: User):
+    watches = await WatchService.list_user_watches(session, db_user.id)
+    await callback.answer()
+    if not watches:
+        await callback.message.edit_text(
+            "🔔 لا توجد تنبيهات نشطة لديك.",
+            reply_markup=_account_kb().as_markup(),
+        )
+        return
+    lines = ["🔔 <b>تنبيهاتي</b>\n", "سنخبرك عند انخفاض السعر أو عودة المخزون:"]
+    kb = InlineKeyboardBuilder()
+    for watch in watches:
+        if watch.product:
+            lines.append(f"\n📦 {watch.product.name_ar} · {watch.product.price_usd}$")
+            kb.button(
+                text=f"🔕 إلغاء {watch.product.name_ar[:25]}",
+                callback_data=f"watch:toggle:{watch.product_id}",
+            )
+    kb.button(text="🔙 رجوع لحسابي", callback_data="menu:account")
+    kb.adjust(1)
+    await callback.message.edit_text("\n".join(lines), reply_markup=kb.as_markup())
 
 
 # ══════════════ طلبات الأرقام ══════════════
@@ -304,11 +332,64 @@ async def unified_order_detail(
             text += "\n\n⚠️ تعذر عرض بيانات التسليم حالياً."
 
     kb = InlineKeyboardBuilder()
+    if order.status == UnifiedOrderStatus.COMPLETED:
+        review_result = await session.execute(
+            select(ProductReview).where(
+                ProductReview.user_id == db_user.id,
+                ProductReview.product_id == order.product_id,
+            )
+        )
+        if review_result.scalar_one_or_none() is None:
+            kb.button(
+                text="⭐ قيّم هذا المنتج",
+                callback_data=f"review:start:{order.id}",
+            )
+    kb.button(text="🔁 إعادة الطلب", callback_data=f"repeat_order:{order.id}")
     kb.button(text="🔙 رجوع للطلبات", callback_data="my_uni_orders:0")
     kb.button(text="🏠 القائمة الرئيسية", callback_data="back_to_main")
     kb.adjust(1)
     await callback.message.edit_text(text, reply_markup=kb.as_markup())
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("repeat_order:"))
+async def repeat_order(
+    callback: CallbackQuery,
+    session,
+    db_user: User,
+    state: FSMContext,
+):
+    order_id = int(callback.data.split(":")[1])
+    result = await session.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.product))
+        .where(
+            UnifiedOrder.id == order_id,
+            UnifiedOrder.user_id == db_user.id,
+        )
+    )
+    order = result.scalar_one_or_none()
+    if order is None or not order.product or order.product.status != ProductStatus.ACTIVE:
+        await callback.answer("⚠️ المنتج لم يعد متاحاً.", show_alert=True)
+        return
+    await state.clear()
+    await state.update_data(
+        product_id=order.product_id,
+        target=order.target or "",
+        quantity=order.quantity or 1,
+    )
+    await callback.answer()
+    await callback.message.edit_text(
+        f"🔁 <b>إعادة الطلب</b>\n\n"
+        f"📦 المنتج: {order.product.name_ar}\n"
+        f"🎯 الهدف: <code>{order.target or '—'}</code>\n"
+        f"📊 الكمية: {order.quantity}\n\n"
+        "هل تريد تنفيذ الطلب مرة أخرى؟",
+        reply_markup=product_confirm_kb(
+            order.product_id,
+            order.product.sub_category_id,
+        ),
+    )
 
 
 # ══════════════ سجل المعاملات المالية ══════════════

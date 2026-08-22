@@ -76,6 +76,18 @@ def build_main_menu(
         callback_data="menu:product_request",
     )
     b.button(
+        text="🎁 بطاقة هدية",
+        callback_data="menu:gift",
+    )
+    b.button(
+        text="🧠 المساعد الذكي",
+        callback_data="menu:assistant",
+    )
+    b.button(
+        text="📡 حالة الخدمات",
+        callback_data="menu:status",
+    )
+    b.button(
         text="🛠 الدعم الفني",
         callback_data="menu:support",
     )
@@ -95,7 +107,7 @@ def build_main_menu(
             rows.append(min(remaining, 2))
             remaining -= 2
 
-    rows.extend([2, 2, 2, 2, 2])
+    rows.extend([2, 2, 2, 2, 2, 2, 1])
     b.adjust(*rows)
 
     return b.as_markup()

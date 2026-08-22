@@ -16,6 +16,25 @@ class ProductSearchStates(StatesGroup):
     waiting_query = State()
 
 
+class GiftRedeemStates(StatesGroup):
+    waiting_code = State()
+
+
+class AssistantStates(StatesGroup):
+    waiting_request = State()
+
+
+class ReviewStates(StatesGroup):
+    waiting_rating = State()
+    waiting_comment = State()
+
+
+class AdminGiftStates(StatesGroup):
+    waiting_amount = State()
+    waiting_expires_days = State()
+    waiting_max_uses = State()
+
+
 class ProductRequestStates(StatesGroup):
     waiting_request = State()
 

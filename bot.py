@@ -21,7 +21,7 @@ from middlewares.state_reset_middleware import StateResetMiddleware
 
 from handlers import (
     start, support, account, referral,
-    deposit, transfer, numbers, loyalty, promotions, product_requests,
+    deposit, transfer, numbers, loyalty, promotions, product_requests, gift, assistant, status, reviews,
 )
 from handlers.deposit_methods import router as deposit_methods_router
 from handlers.games import router as games_router
@@ -31,6 +31,7 @@ from handlers.admin import (
     channels as admin_channels,
     countries as admin_countries,
     deposits as admin_deposits,
+    gift_codes as admin_gift_codes,
     users as admin_users,
     pricing as admin_pricing,
     providers as admin_providers,
@@ -61,6 +62,7 @@ from tasks.order_monitor import (
 )
 from tasks.unified_order_monitor import check_unified_orders
 from tasks.invoice_monitor import check_pending_invoices
+from tasks.watch_job import check_product_watches
 from tasks.backup_job import daily_backup
 from services.plisio_service import plisio_client
 
@@ -108,6 +110,10 @@ def register_routers():
     dp.include_router(loyalty.router)
     dp.include_router(promotions.router)
     dp.include_router(product_requests.router)
+    dp.include_router(gift.router)
+    dp.include_router(assistant.router)
+    dp.include_router(status.router)
+    dp.include_router(reviews.router)
     dp.include_router(games_router)
 
     # ── هاندلرز الأدمن ──
@@ -116,6 +122,7 @@ def register_routers():
     dp.include_router(admin_channels.router)
     dp.include_router(admin_countries.router)
     dp.include_router(admin_deposits.router)
+    dp.include_router(admin_gift_codes.router)
     dp.include_router(admin_users.router)
     dp.include_router(admin_pricing.router)
     dp.include_router(admin_providers.router)
@@ -165,6 +172,13 @@ def start_scheduler() -> AsyncIOScheduler:
 
     scheduler.add_job(
         update_provider_status,
+        "interval",
+        minutes=10,
+        args=[bot],
+    )
+
+    scheduler.add_job(
+        check_product_watches,
         "interval",
         minutes=10,
         args=[bot],

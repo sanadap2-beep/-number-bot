@@ -45,6 +45,7 @@ class TransactionType(str, enum.Enum):
     STARS_DEPOSIT = "stars_deposit"
     COUPON_BONUS = "coupon_bonus"
     LOYALTY_REDEEM = "loyalty_redeem"
+    GIFT_REDEEM = "gift_redeem"
 
 
 class DepositStatus(str, enum.Enum):
@@ -974,6 +975,107 @@ class DigitalInventoryItem(Base):
 
     product: Mapped["Product"] = relationship(
         back_populates="inventory_items"
+    )
+
+
+class ProductWatch(Base):
+    """اشتراك مستخدم بتنبيه تغير السعر أو عودة المخزون."""
+    __tablename__ = "product_watches"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "product_id", name="uq_product_watch"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    last_seen_price: Mapped[Decimal] = mapped_column(MONEY)
+    last_seen_stock: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    last_notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+
+    user: Mapped["User"] = relationship()
+    product: Mapped["Product"] = relationship()
+
+
+class ProductReview(Base):
+    """تقييم المستخدم لمنتج بعد طلب مكتمل."""
+    __tablename__ = "product_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "product_id", name="uq_product_review"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    unified_order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("unified_orders.id"), nullable=True
+    )
+    rating: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    user: Mapped["User"] = relationship()
+    product: Mapped["Product"] = relationship()
+
+
+class GiftCode(Base):
+    """بطاقة هدية صادرة من الإدارة."""
+    __tablename__ = "gift_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(
+        String(32), unique=True, index=True
+    )
+    amount_usd: Mapped[Decimal] = mapped_column(MONEY)
+    max_uses: Mapped[int] = mapped_column(Integer, default=1)
+    used_count: Mapped[int] = mapped_column(Integer, default=0)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
+class GiftRedemption(Base):
+    __tablename__ = "gift_redemptions"
+    __table_args__ = (
+        UniqueConstraint(
+            "gift_code_id", "user_id", name="uq_gift_code_user"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    gift_code_id: Mapped[int] = mapped_column(
+        ForeignKey("gift_codes.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    amount_usd: Mapped[Decimal] = mapped_column(MONEY)
+    redeemed_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
     )
 
 
