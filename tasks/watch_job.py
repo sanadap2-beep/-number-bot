@@ -1,0 +1,15 @@
+"""مراقبة تغيّر أسعار ومخزون المنتجات."""
+import logging
+
+from services.watch_service import WatchService
+
+logger = logging.getLogger(__name__)
+
+
+async def check_product_watches(bot):
+    try:
+        sent = await WatchService.check_all(bot)
+        if sent:
+            logger.info("تم إرسال %s تنبيه منتج.", sent)
+    except Exception:
+        logger.exception("فشل فحص تنبيهات المنتجات")
