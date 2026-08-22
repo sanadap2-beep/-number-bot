@@ -63,6 +63,7 @@ class Settings(BaseSettings):
 
     # ── Mini App / API ──
     WEBAPP_URL: str = ""
+    ADMIN_WEBAPP_URL: str = ""
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8080
 

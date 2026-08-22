@@ -1,8 +1,10 @@
 """
 كل أزرار لوحة الأدمن.
 """
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from config import settings
 
 
 # ══════════════ اللوحة الرئيسية ══════════════
@@ -30,6 +32,11 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="📢 إذاعة جماعية", callback_data="admin:broadcast")
     b.button(text="🔧 وضع الصيانة", callback_data="admin:maintenance")
     b.button(text="⚙️ الإعدادات العامة", callback_data="admin:settings")
+    if settings.ADMIN_WEBAPP_URL:
+        b.button(
+            text="🌐 لوحة الويب",
+            web_app=WebAppInfo(url=settings.ADMIN_WEBAPP_URL),
+        )
     b.button(text="📜 سجل الإدارة", callback_data="admin:audit")
     b.button(text="🎫 تذاكر الدعم", callback_data="admin:tickets")
     b.button(text="🩺 صحة النظام", callback_data="admin:health")

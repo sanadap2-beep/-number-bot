@@ -1,7 +1,7 @@
 """FastAPI dependencies for database and authenticated users."""
 from collections.abc import AsyncGenerator
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 
 from api.auth import current_telegram_user
@@ -31,4 +31,12 @@ async def get_current_user(
         session.add(user)
         await session.commit()
         await session.refresh(user)
+    return user
+
+
+async def get_current_admin(
+    user: User = Depends(get_current_user),
+) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="admin access required")
     return user

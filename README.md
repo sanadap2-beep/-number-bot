@@ -89,8 +89,8 @@ docker compose up -d --build
 
 ## Mini App وواجهة API
 
-يحتوي المشروع على متجر Mini App في `/app/` وواجهة API في `/api/v1/`.
-لربط زر المتجر داخل Telegram ضع رابط HTTPS العام في `WEBAPP_URL`، ثم شغّل الخادم:
+يحتوي المشروع على متجر Mini App في `/app/` ولوحة أدمن ويب في `/admin/` وواجهة API في `/api/v1/`.
+لربط زر المتجر داخل Telegram ضع رابط HTTPS العام في `WEBAPP_URL`، وللوحة الأدمن ضع رابطها في `ADMIN_WEBAPP_URL`، ثم شغّل الخادم:
 
 ```bash
 uvicorn api.app:app --host 0.0.0.0 --port 8080

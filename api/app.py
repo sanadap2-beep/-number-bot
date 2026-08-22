@@ -8,11 +8,12 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
+from api.admin import router as admin_router
 from api.deps import get_current_user, get_session
 from api.schemas import (
     CatalogOut,
@@ -62,6 +63,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+app.include_router(admin_router)
 
 
 @app.get("/health/live")
@@ -346,3 +348,9 @@ async def redeem_gift(
 
 webapp_dir = Path(__file__).resolve().parent.parent / "webapp"
 app.mount("/app", StaticFiles(directory=webapp_dir, html=True), name="webapp")
+app.mount("/admin-assets", StaticFiles(directory=webapp_dir), name="admin-assets")
+
+
+@app.get("/admin/", include_in_schema=False)
+def admin_webapp():
+    return FileResponse(webapp_dir / "admin.html")
