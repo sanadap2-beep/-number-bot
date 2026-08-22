@@ -21,7 +21,7 @@ from middlewares.state_reset_middleware import StateResetMiddleware
 
 from handlers import (
     start, support, account, referral,
-    deposit, transfer, numbers, loyalty, promotions, product_requests, gift, assistant, status, reviews,
+    deposit, transfer, numbers, loyalty, promotions, product_requests, gift, assistant, status, reviews, webapp,
 )
 from handlers.deposit_methods import router as deposit_methods_router
 from handlers.games import router as games_router
@@ -114,6 +114,7 @@ def register_routers():
     dp.include_router(assistant.router)
     dp.include_router(status.router)
     dp.include_router(reviews.router)
+    dp.include_router(webapp.router)
     dp.include_router(games_router)
 
     # ── هاندلرز الأدمن ──

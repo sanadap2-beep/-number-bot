@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     INVENTORY_ENCRYPTION_KEY: str = ""
 
+    # ── Mini App / API ──
+    WEBAPP_URL: str = ""
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8080
+
     # ── الإعدادات المالية الافتراضية (بالدولار فقط) ──
     DEFAULT_PROFIT_MARGIN_PERCENT: Decimal = Decimal("50")
 

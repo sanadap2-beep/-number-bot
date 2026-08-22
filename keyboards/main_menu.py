@@ -5,9 +5,10 @@
 2) الأقسام المفعلة (جدول categories)
 3) أزرار ثابتة (شحن رصيد، حسابي، إلخ)
 """
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from config import settings
 from database.models import NumberService, Category
 
 
@@ -39,6 +40,11 @@ def build_main_menu(
         )
 
     # ── أزرار ثابتة ──
+    if settings.WEBAPP_URL:
+        b.button(
+            text="🌐 المتجر الكامل",
+            web_app=WebAppInfo(url=settings.WEBAPP_URL),
+        )
     b.button(
         text="💰 شحن الرصيد",
         callback_data="menu:deposit",
@@ -107,7 +113,10 @@ def build_main_menu(
             rows.append(min(remaining, 2))
             remaining -= 2
 
-    rows.extend([2, 2, 2, 2, 2, 2, 1])
+    fixed_count = 13 + (1 if settings.WEBAPP_URL else 0)
+    rows.extend([2] * (fixed_count // 2))
+    if fixed_count % 2:
+        rows.append(1)
     b.adjust(*rows)
 
     return b.as_markup()
