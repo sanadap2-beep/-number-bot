@@ -64,6 +64,10 @@ def build_main_menu(
         callback_data="menu:favorites",
     )
     b.button(
+        text="🎁 الولاء والمكافآت",
+        callback_data="menu:loyalty",
+    )
+    b.button(
         text="🛠 الدعم الفني",
         callback_data="menu:support",
     )
@@ -83,7 +87,7 @@ def build_main_menu(
             rows.append(min(remaining, 2))
             remaining -= 2
 
-    rows.extend([2, 2, 2, 1])
+    rows.extend([2, 2, 2, 2])
     b.adjust(*rows)
 
     return b.as_markup()

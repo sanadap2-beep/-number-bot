@@ -24,6 +24,7 @@ from providers.smm_provider import (
 from services.balance_service import BalanceService
 from services.notification_service import NotificationService
 from services.dynamic_service import DynamicService
+from services.loyalty_service import LoyaltyService
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,14 @@ async def _handle_completed(
         await DynamicService.increment_product_sold(
             session, order.product_id
         )
+
+    await LoyaltyService.award_purchase_points(
+        session,
+        user.id,
+        "unified_orders",
+        order.id,
+        order.price_usd,
+    )
 
     await notifier.notify_order_completed(
         user_telegram_id=user.telegram_id,

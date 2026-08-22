@@ -22,6 +22,7 @@ from services.balance_service import BalanceService
 from services.notification_service import NotificationService
 from services.settings_service import SettingsService
 from services.cashback_service import CashbackService
+from services.loyalty_service import LoyaltyService
 from keyboards.numbers import code_received_kb
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,13 @@ async def _handle_code_received(
     await CashbackService.apply_cashback(
         session, user.id,
         order.id, "number_orders",
+        order.price_sell_usd,
+    )
+    await LoyaltyService.award_purchase_points(
+        session,
+        user.id,
+        "number_orders",
+        order.id,
         order.price_sell_usd,
     )
 

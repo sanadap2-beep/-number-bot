@@ -23,6 +23,10 @@ DEFAULT_SETTINGS = {
     "referral_bonus_usd": str(settings.REFERRAL_BONUS_USD),
     "referral_percent": str(settings.REFERRAL_PERCENT),
     "cashback_percent": str(settings.CASHBACK_PERCENT),
+    "loyalty_points_per_usd": str(settings.LOYALTY_POINTS_PER_USD),
+    "loyalty_daily_points": str(settings.LOYALTY_DAILY_POINTS),
+    "loyalty_points_per_usd_redeem": str(settings.LOYALTY_POINTS_PER_USD_REDEEM),
+    "loyalty_min_redeem_points": str(settings.LOYALTY_MIN_REDEEM_POINTS),
     "stars_rate_usd": str(settings.STARS_RATE_USD),
     "large_order_confirm_usd": str(settings.LARGE_ORDER_CONFIRM_USD),
 
@@ -198,6 +202,25 @@ async def init_db() -> None:
                     "WHERE payment_reference IS NOT NULL"
                 )
             )
+
+            # حقول الولاء الجديدة تُضاف تلقائياً للقواعد القديمة.
+            user_columns = await conn.run_sync(
+                lambda sync_conn: {
+                    column["name"]
+                    for column in inspect(sync_conn).get_columns("users")
+                }
+            )
+            for name, definition in (
+                ("loyalty_points", "INTEGER DEFAULT 0"),
+                ("loyalty_streak", "INTEGER DEFAULT 0"),
+                ("last_checkin_date", "DATE"),
+            ):
+                if name not in user_columns:
+                    await conn.execute(
+                        text(
+                            f"ALTER TABLE users ADD COLUMN {name} {definition}"
+                        )
+                    )
 
     async with async_session_maker() as session:
 

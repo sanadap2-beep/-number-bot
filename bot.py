@@ -21,7 +21,7 @@ from middlewares.state_reset_middleware import StateResetMiddleware
 
 from handlers import (
     start, support, account, referral,
-    deposit, transfer, numbers,
+    deposit, transfer, numbers, loyalty,
 )
 from handlers.deposit_methods import router as deposit_methods_router
 from handlers.games import router as games_router
@@ -41,6 +41,7 @@ from handlers.admin import (
     api_providers as admin_api_providers,
     audit as admin_audit,
     health as admin_health,
+    loyalty as admin_loyalty,
     coupons as admin_coupons,
     multi_admin as admin_multi_admin,
     number_services as admin_number_services,
@@ -100,6 +101,7 @@ def register_routers():
     dp.include_router(deposit_methods_router)
     dp.include_router(transfer.router)
     dp.include_router(numbers.router)
+    dp.include_router(loyalty.router)
     dp.include_router(games_router)
 
     # ── هاندلرز الأدمن ──
@@ -118,6 +120,7 @@ def register_routers():
     dp.include_router(admin_api_providers.router)
     dp.include_router(admin_audit.router)
     dp.include_router(admin_health.router)
+    dp.include_router(admin_loyalty.router)
     dp.include_router(admin_coupons.router)
     dp.include_router(admin_multi_admin.router)
     dp.include_router(admin_number_services.router)

@@ -14,11 +14,11 @@
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, Enum as SAEnum, ForeignKey,
+    BigInteger, Boolean, Date, DateTime, Enum as SAEnum, ForeignKey,
     Integer, Numeric, String, Text, func, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -44,6 +44,7 @@ class TransactionType(str, enum.Enum):
     CASHBACK = "cashback"
     STARS_DEPOSIT = "stars_deposit"
     COUPON_BONUS = "coupon_bonus"
+    LOYALTY_REDEEM = "loyalty_redeem"
 
 
 class DepositStatus(str, enum.Enum):
@@ -195,6 +196,13 @@ class User(Base):
         MONEY, default=Decimal("0")
     )
 
+    # برنامج الولاء والمكافآت
+    loyalty_points: Mapped[int] = mapped_column(Integer, default=0)
+    loyalty_streak: Mapped[int] = mapped_column(Integer, default=0)
+    last_checkin_date: Mapped[date | None] = mapped_column(
+        Date, nullable=True
+    )
+
     joined_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
@@ -205,6 +213,35 @@ class User(Base):
     referrer: Mapped["User"] = relationship(
         remote_side=[id], backref="referrals"
     )
+
+
+class LoyaltyEvent(Base):
+    """سجل نقاط الولاء مع مفتاح يمنع احتساب الحدث مرتين."""
+    __tablename__ = "loyalty_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    event_key: Mapped[str] = mapped_column(
+        String(128), unique=True, index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(32))
+    points: Mapped[int] = mapped_column(Integer)
+    related_table: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    related_id: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    description: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), index=True
+    )
+
+    user: Mapped["User"] = relationship()
 
 
 class Transaction(Base):

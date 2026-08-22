@@ -62,6 +62,7 @@ async def user_search_result(
         f"🛒 إجمالي الشراء: {user.total_spent_usd:.2f}$\n"
         f"📦 عدد الطلبات: {user.total_orders}\n"
         f"🎁 كاشباك: {user.cashback_earned_usd:.4f}$\n"
+        f"💎 نقاط الولاء: {user.loyalty_points}\n"
         f"🚫 محظور: {'نعم' if user.is_banned else 'لا'}\n"
         f"👑 أدمن: {'نعم' if user.is_admin else 'لا'}\n"
         f"📅 الانضمام: {user.joined_at.strftime('%Y-%m-%d')}",

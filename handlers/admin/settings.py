@@ -14,6 +14,7 @@ from states.states import (
     AdminSettingsStates, AdminWelcomeStates,
 )
 from keyboards.admin import (
+    admin_loyalty_settings_kb,
     admin_payment_settings_kb,
     admin_settings_kb,
     admin_back_kb,
@@ -56,6 +57,13 @@ async def settings_menu(callback: CallbackQuery):
     )
 
 
+_LOYALTY_SETTING_KEYS = (
+    "loyalty_points_per_usd",
+    "loyalty_daily_points",
+    "loyalty_points_per_usd_redeem",
+    "loyalty_min_redeem_points",
+)
+
 _PAYMENT_SETTING_KEYS = (
     "payment_shamcash_manual_enabled",
     "payment_stars_enabled",
@@ -64,6 +72,53 @@ _PAYMENT_SETTING_KEYS = (
     "payment_usdt_auto_enabled",
     "payment_other_enabled",
 )
+
+
+@router.callback_query(F.data == "admin:loyalty_settings")
+async def loyalty_settings_menu(callback: CallbackQuery):
+    points_per_usd = await SettingsService.get_decimal(
+        "loyalty_points_per_usd", Decimal("10")
+    )
+    daily = await SettingsService.get_int("loyalty_daily_points", 25)
+    redeem_ratio = await SettingsService.get_int(
+        "loyalty_points_per_usd_redeem", 1000
+    )
+    minimum = await SettingsService.get_int(
+        "loyalty_min_redeem_points", 100
+    )
+    await callback.message.edit_text(
+        "🎁 <b>إعدادات برنامج الولاء</b>\\n\\n"
+        f"💎 نقاط كل دولار شراء: {points_per_usd}\\n"
+        f"🎁 مكافأة التسجيل اليومي: {daily} نقطة\\n"
+        f"💵 عدد النقاط مقابل 1$: {redeem_ratio}\\n"
+        f"🔢 الحد الأدنى للاستبدال: {minimum} نقطة",
+        reply_markup=admin_loyalty_settings_kb(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:loyalty_set:"))
+async def loyalty_setting_start(
+    callback: CallbackQuery,
+    state: FSMContext,
+):
+    key = callback.data.split(":", 2)[2]
+    if key not in _LOYALTY_SETTING_KEYS:
+        await callback.answer("⚠️ إعداد غير صالح.", show_alert=True)
+        return
+    prompts = {
+        "loyalty_points_per_usd": "أرسل عدد النقاط لكل دولار شراء:",
+        "loyalty_daily_points": "أرسل مكافأة التسجيل اليومي:",
+        "loyalty_points_per_usd_redeem": "أرسل عدد النقاط مقابل 1$:",
+        "loyalty_min_redeem_points": "أرسل الحد الأدنى لنقاط الاستبدال:",
+    }
+    await state.update_data(setting_key=key)
+    await state.set_state(AdminSettingsStates.waiting_value)
+    await callback.message.edit_text(
+        f"🎁 {prompts[key]}",
+        reply_markup=admin_back_kb(),
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data == "admin:payment_settings")
@@ -333,10 +388,19 @@ async def generic_setting_received(
         await state.clear()
         return
 
-    value = message.text.strip()
+    value = (message.text or "").strip()
     try:
-        Decimal(value)
+        numeric = Decimal(value)
+        if key in _LOYALTY_SETTING_KEYS and (
+            not numeric.is_finite() or numeric <= 0
+        ):
+            raise InvalidOperation
+        if key != "loyalty_points_per_usd" and not numeric == numeric.to_integral_value():
+            raise InvalidOperation
     except InvalidOperation:
+        if key in _LOYALTY_SETTING_KEYS:
+            await message.answer("⚠️ أرسل رقماً موجباً وصحيحاً.")
+            return
         try:
             int(value)
         except ValueError:

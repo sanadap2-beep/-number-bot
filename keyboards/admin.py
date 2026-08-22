@@ -30,6 +30,7 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="📜 سجل الإدارة", callback_data="admin:audit")
     b.button(text="🎫 تذاكر الدعم", callback_data="admin:tickets")
     b.button(text="🩺 صحة النظام", callback_data="admin:health")
+    b.button(text="🎁 برنامج الولاء", callback_data="admin:loyalty")
     b.adjust(2)
     return b.as_markup()
 
@@ -468,6 +469,30 @@ def admin_pricing_kb() -> InlineKeyboardMarkup:
 
 # ══════════════ الإعدادات ══════════════
 
+def admin_loyalty_settings_kb() -> InlineKeyboardMarkup:
+    """أزرار إعدادات برنامج الولاء."""
+    b = InlineKeyboardBuilder()
+    b.button(
+        text="💎 نقاط كل دولار",
+        callback_data="admin:loyalty_set:loyalty_points_per_usd",
+    )
+    b.button(
+        text="🎁 مكافأة التسجيل اليومي",
+        callback_data="admin:loyalty_set:loyalty_daily_points",
+    )
+    b.button(
+        text="💵 معامل الاستبدال",
+        callback_data="admin:loyalty_set:loyalty_points_per_usd_redeem",
+    )
+    b.button(
+        text="🔢 الحد الأدنى للاستبدال",
+        callback_data="admin:loyalty_set:loyalty_min_redeem_points",
+    )
+    b.button(text="🔙 لوحة الولاء", callback_data="admin:loyalty")
+    b.adjust(1)
+    return b.as_markup()
+
+
 def admin_payment_settings_kb(settings_values: dict[str, bool]) -> InlineKeyboardMarkup:
     """أزرار تشغيل وإيقاف طرق الدفع."""
     labels = {
@@ -495,6 +520,7 @@ def admin_settings_kb() -> InlineKeyboardMarkup:
     b.button(text="🛠 يوزر الدعم", callback_data="admin:set_support")
     b.button(text="💳 طريقة الدفع", callback_data="admin:set_payment")
     b.button(text="🎛 تفعيل طرق الدفع", callback_data="admin:payment_settings")
+    b.button(text="🎁 إعدادات الولاء", callback_data="admin:loyalty_settings")
     b.button(text="🚨 حد التحويل الكبير", callback_data="admin:set_large_tx")
     b.button(text="⏳ مهلة انتظار الكود", callback_data="admin:set_order_timeout")
     b.button(text="📝 رسالة الترحيب", callback_data="admin:set_welcome")

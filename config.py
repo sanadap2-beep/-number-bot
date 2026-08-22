@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     REFERRAL_BONUS_USD: Decimal = Decimal("0.015")
     REFERRAL_PERCENT: Decimal = Decimal("5")
     CASHBACK_PERCENT: Decimal = Decimal("0")
+    LOYALTY_POINTS_PER_USD: Decimal = Decimal("10")
+    LOYALTY_DAILY_POINTS: int = 25
+    LOYALTY_POINTS_PER_USD_REDEEM: int = 1000
+    LOYALTY_MIN_REDEEM_POINTS: int = 100
     STARS_RATE_USD: Decimal = Decimal("0.013")
     MAX_ACTIVE_ORDERS: int = 3
     RATE_LIMIT_SECONDS: int = 30

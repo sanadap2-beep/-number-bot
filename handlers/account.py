@@ -47,6 +47,7 @@ TRANSACTION_TYPE_LABELS = {
     "cashback": "🎁 كاشباك",
     "stars_deposit": "⭐ نجوم تليجرام",
     "coupon_bonus": "🎟 كوبون",
+    "loyalty_redeem": "🎁 استبدال نقاط الولاء",
 }
 
 
@@ -98,6 +99,7 @@ async def _send_account(
         f"🛒 إجمالي مشترياتك: <b>{db_user.total_spent_usd:.2f}$</b>\n"
         f"📦 عدد الطلبات: <b>{db_user.total_orders}</b>\n"
         f"🎁 كاشباك محصّل: <b>{total_cashback:.4f}$</b>\n"
+        f"💎 نقاط الولاء: <b>{db_user.loyalty_points}</b>\n"
         f"👥 عدد إحالاتك: <b>{referrals_count}</b>\n"
         f"📅 تاريخ انضمامك: {db_user.joined_at.strftime('%Y-%m-%d')}",
         reply_markup=kb.as_markup(),
