@@ -30,6 +30,7 @@ from services.settings_service import SettingsService
 from services.coupon_service import CouponService, CouponError
 from services.cashback_service import CashbackService
 from services.product_service import ProductService
+from services.promotion_service import PromotionService
 from protocols.base import ProtocolError
 from protocols.factory import ProtocolFactory
 from states.states import (
@@ -642,8 +643,12 @@ async def _execute_purchase(
     else:
         total_price = product.price_usd
 
-    # مخزون الأكواد يباع بسعر ثابت ولا يقبل كوبونات لتبقى عملية التسليم
-    # والخصم ذرّية وقابلة للمراجعة.
+    promotion, promotion_discount = await PromotionService.get_best_promotion(
+        session, product.id, total_price
+    )
+
+    # مخزون الأكواد لا يقبل كوبونات فوق العرض التلقائي؛ يبقى التسليم
+    # والفوترة واضحين وقابلين للمراجعة.
     if (
         fulfillment == ProductFulfillmentType.INVENTORY.value
         and coupon_code
@@ -655,7 +660,7 @@ async def _execute_purchase(
         await state.clear()
         return
 
-    # ── تطبيق الكوبون ──
+    # ── تطبيق الأفضل بين الكوبون والعرض التلقائي ──
     discount = Decimal("0")
     coupon = None
     if coupon_code:
@@ -669,6 +674,12 @@ async def _execute_purchase(
         except CouponError:
             discount = Decimal("0")
             coupon = None
+
+    if promotion_discount >= discount and promotion_discount > 0:
+        discount = promotion_discount
+        coupon = None
+    elif discount > 0:
+        promotion = None
 
     final_price = total_price - discount
 
@@ -691,7 +702,7 @@ async def _execute_purchase(
     await _finalize_purchase(
         callback, session, db_user, bot, state,
         product, target, quantity,
-        final_price, discount, coupon,
+        final_price, discount, coupon, promotion,
     )
 
 
@@ -713,8 +724,9 @@ async def product_final_confirm(
     product = await DynamicService.get_product(
         session, product_id
     )
-    if not product:
+    if not product or product.status != ProductStatus.ACTIVE:
         await callback.answer("⚠️ المنتج غير متاح.", show_alert=True)
+        await state.clear()
         return
 
     await callback.answer("⏳ جاري تنفيذ الطلب...")
@@ -726,6 +738,25 @@ async def product_final_confirm(
         ).quantize(Decimal("0.0001"))
     else:
         total_price = product.price_usd
+
+    fulfillment = getattr(
+        product.fulfillment_type,
+        "value",
+        product.fulfillment_type,
+    )
+    promotion, promotion_discount = await PromotionService.get_best_promotion(
+        session, product.id, total_price
+    )
+    if (
+        fulfillment == ProductFulfillmentType.INVENTORY.value
+        and coupon_code
+    ):
+        await callback.answer(
+            "⚠️ الكوبونات غير متاحة لهذا المنتج.",
+            show_alert=True,
+        )
+        await state.clear()
+        return
 
     discount = Decimal("0")
     coupon = None
@@ -739,13 +770,18 @@ async def product_final_confirm(
             )
         except CouponError:
             pass
+    if promotion_discount >= discount and promotion_discount > 0:
+        discount = promotion_discount
+        coupon = None
+    elif discount > 0:
+        promotion = None
 
     final_price = total_price - discount
 
     await _finalize_purchase(
         callback, session, db_user, bot, state,
         product, target, quantity,
-        final_price, discount, coupon,
+        final_price, discount, coupon, promotion,
     )
 
 
@@ -761,13 +797,33 @@ async def _finalize_purchase(
     final_price,
     discount,
     coupon,
+    promotion,
 ):
     notifier = NotificationService(bot)
-
-    if (
-        getattr(product.fulfillment_type, "value", product.fulfillment_type)
-        == ProductFulfillmentType.INVENTORY.value
+    fulfillment = getattr(
+        product.fulfillment_type,
+        "value",
+        product.fulfillment_type,
+    )
+    if fulfillment == ProductFulfillmentType.API.value and (
+        not product.api_provider_id
+        or not product.provider_service_id
+        or not product.api_provider
+        or not product.api_provider.is_active
     ):
+        await callback.message.answer(
+            "⚠️ المزود غير متاح حالياً. لم يتم خصم أي مبلغ."
+        )
+        await state.clear()
+        return
+    if fulfillment == ProductFulfillmentType.MANUAL.value:
+        await callback.message.answer(
+            "⚠️ هذا المنتج غير متاح للشراء التلقائي."
+        )
+        await state.clear()
+        return
+
+    if fulfillment == ProductFulfillmentType.INVENTORY.value:
         try:
             order, delivered_value, metadata = await InventoryService.purchase(
                 session,
@@ -775,12 +831,15 @@ async def _finalize_purchase(
                 product_id=product.id,
                 price_usd=final_price,
                 quantity=quantity,
+                promotion_id=promotion.id if promotion else None,
             )
         except (InventoryError, InsufficientBalanceError) as exc:
             await callback.message.answer(f"⚠️ {exc}")
             await state.clear()
             return
 
+        if promotion:
+            await PromotionService.mark_used(session, promotion.id)
         await DynamicService.increment_product_sold(
             session, product.id, quantity
         )
@@ -907,6 +966,7 @@ async def _finalize_purchase(
         user_id=db_user.id,
         product_id=product.id,
         api_provider_id=product.api_provider_id,
+        promotion_id=promotion.id if promotion else None,
         external_order_id=external_order_id,
         target=target,
         quantity=quantity,
@@ -918,6 +978,9 @@ async def _finalize_purchase(
     session.add(order)
     await session.commit()
     await session.refresh(order)
+
+    if promotion:
+        await PromotionService.mark_used(session, promotion.id)
 
     # ── تحديث عداد المبيعات ──
     await DynamicService.increment_product_sold(
@@ -939,7 +1002,8 @@ async def _finalize_purchase(
         f"💰 المبلغ: {final_price}$\n"
     )
     if discount > 0:
-        result_text += f"🎟 الخصم: {discount}$\n"
+        label = "العرض" if promotion else "الكوبون"
+        result_text += f"🎁 {label}: -{discount}$\n"
     if cashback > 0:
         result_text += f"🎁 كاشباك: {cashback}$\n"
     if target:

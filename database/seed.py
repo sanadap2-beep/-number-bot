@@ -236,6 +236,20 @@ async def init_db() -> None:
                     )
                 )
 
+            order_columns = await conn.run_sync(
+                lambda sync_conn: {
+                    column["name"]
+                    for column in inspect(sync_conn).get_columns("unified_orders")
+                }
+            )
+            if "promotion_id" not in order_columns:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE unified_orders ADD COLUMN promotion_id "
+                        "INTEGER"
+                    )
+                )
+
     async with async_session_maker() as session:
 
         # ── زرع الإعدادات الافتراضية ──

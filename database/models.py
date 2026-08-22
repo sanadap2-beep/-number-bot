@@ -87,6 +87,11 @@ class ProductFulfillmentType(str, enum.Enum):
     MANUAL = "manual"
 
 
+class PromotionDiscountType(str, enum.Enum):
+    PERCENT = "percent"
+    FIXED = "fixed"
+
+
 class InventoryItemStatus(str, enum.Enum):
     AVAILABLE = "available"
     RESERVED = "reserved"
@@ -838,6 +843,36 @@ class Product(Base):
         back_populates="product",
         cascade="all, delete-orphan",
     )
+    promotions: Mapped[list["Promotion"]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )
+
+
+class Promotion(Base):
+    """عرض زمني ديناميكي على منتج محدد."""
+    __tablename__ = "promotions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(128))
+    discount_type: Mapped[PromotionDiscountType] = mapped_column(
+        SAEnum(PromotionDiscountType)
+    )
+    discount_value: Mapped[Decimal] = mapped_column(MONEY)
+    starts_at: Mapped[datetime] = mapped_column(DateTime)
+    ends_at: Mapped[datetime] = mapped_column(DateTime)
+    max_uses: Mapped[int] = mapped_column(Integer, default=0)
+    used_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    product: Mapped["Product"] = relationship(back_populates="promotions")
 
 
 class DigitalInventoryItem(Base):
@@ -909,6 +944,9 @@ class UnifiedOrder(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     api_provider_id: Mapped[int | None] = mapped_column(
         ForeignKey("api_providers.id"), nullable=True
+    )
+    promotion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("promotions.id"), nullable=True
     )
 
     external_order_id: Mapped[str | None] = mapped_column(

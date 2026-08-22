@@ -105,6 +105,7 @@ class InventoryService:
         product_id: int,
         price_usd,
         quantity: int = 1,
+        promotion_id: int | None = None,
     ) -> tuple[UnifiedOrder, str, dict | None]:
         """يسلّم أول عنصر متاح ويخصم الرصيد في معاملة واحدة."""
         if quantity != 1:
@@ -169,6 +170,7 @@ class InventoryService:
             order = UnifiedOrder(
                 user_id=user_id,
                 product_id=product_id,
+                promotion_id=promotion_id,
                 external_order_id=None,
                 target=None,
                 quantity=1,

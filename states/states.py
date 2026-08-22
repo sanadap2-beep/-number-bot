@@ -28,6 +28,14 @@ class AdminInventoryStates(StatesGroup):
     waiting_value = State()
 
 
+class AdminPromotionStates(StatesGroup):
+    waiting_product_id = State()
+    waiting_name = State()
+    waiting_discount_value = State()
+    waiting_duration_hours = State()
+    waiting_max_uses = State()
+
+
 # ══════════════ الشحن اليدوي - شام كاش ══════════════
 
 class ShamCashManualStates(StatesGroup):

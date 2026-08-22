@@ -32,6 +32,7 @@ def admin_main_kb() -> InlineKeyboardMarkup:
     b.button(text="🩺 صحة النظام", callback_data="admin:health")
     b.button(text="🎁 برنامج الولاء", callback_data="admin:loyalty")
     b.button(text="📦 المخزون الرقمي", callback_data="admin:inventory")
+    b.button(text="🔥 إدارة العروض", callback_data="admin:promotions")
     b.adjust(2)
     return b.as_markup()
 
