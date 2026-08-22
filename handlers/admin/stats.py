@@ -13,6 +13,7 @@ from database.models import (
     NumberOrder, UnifiedOrder,
     OrderStatus, UnifiedOrderStatus,
     SupportTicket, SupportTicketStatus,
+    ProductRequest, ProductRequestStatus,
 )
 from keyboards.admin import admin_back_kb
 from filters.admin_filter import IsAdmin
@@ -101,6 +102,14 @@ async def stats_handler(callback: CallbackQuery, session):
         select(func.count(SupportTicket.id)).where(
             SupportTicket.status.in_(
                 [SupportTicketStatus.OPEN, SupportTicketStatus.IN_PROGRESS]
+            )
+        )
+    )).scalar_one()
+
+    market_requests = (await session.execute(
+        select(func.count(ProductRequest.id)).where(
+            ProductRequest.status.in_(
+                [ProductRequestStatus.OPEN, ProductRequestStatus.IN_REVIEW]
             )
         )
     )).scalar_one()
@@ -206,7 +215,8 @@ async def stats_handler(callback: CallbackQuery, session):
         f"الأسبوع: {week_deposits:.2f}$\n"
         f"الشهر: {month_deposits:.2f}$\n"
         f"⏳ إيداعات معلّقة: {pending_deposits}\n"
-        f"🎫 تذاكر مفتوحة: {open_tickets}\n\n"
+        f"🎫 تذاكر مفتوحة: {open_tickets}\n"
+        f"📈 طلبات سوق قيد الدراسة: {market_requests}\n\n"
         "━━━ 📞 طلبات الأرقام ━━━\n"
         f"اليوم: {today_num_sales}\n"
         f"الإجمالي: {total_num_sales}\n\n"

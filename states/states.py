@@ -16,6 +16,14 @@ class ProductSearchStates(StatesGroup):
     waiting_query = State()
 
 
+class ProductRequestStates(StatesGroup):
+    waiting_request = State()
+
+
+class AdminProductRequestStates(StatesGroup):
+    waiting_note = State()
+
+
 class SupportTicketStates(StatesGroup):
     waiting_message = State()
 

@@ -106,6 +106,13 @@ class SupportTicketStatus(str, enum.Enum):
     CLOSED = "closed"
 
 
+class ProductRequestStatus(str, enum.Enum):
+    OPEN = "open"
+    IN_REVIEW = "in_review"
+    FULFILLED = "fulfilled"
+    REJECTED = "rejected"
+
+
 class UnifiedOrderStatus(str, enum.Enum):
     PENDING = "pending"
     PROCESSING = "processing"
@@ -564,6 +571,71 @@ class SupportTicket(Base):
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id])
     admin: Mapped["User | None"] = relationship(foreign_keys=[admin_id])
+
+
+class ProductRequest(Base):
+    """طلبات المستخدمين للخدمات غير الموجودة في الكتالوج."""
+    __tablename__ = "product_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(128), index=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    normalized_title: Mapped[str] = mapped_column(String(128), index=True)
+    status: Mapped[ProductRequestStatus] = mapped_column(
+        SAEnum(ProductRequestStatus),
+        default=ProductRequestStatus.OPEN,
+        index=True,
+    )
+    votes_count: Mapped[int] = mapped_column(Integer, default=1)
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    handled_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, onupdate=func.now(), server_default=func.now()
+    )
+    handled_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+    handler: Mapped["User | None"] = relationship(foreign_keys=[handled_by])
+    votes: Mapped[list["ProductRequestVote"]] = relationship(
+        back_populates="request",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProductRequestVote(Base):
+    __tablename__ = "product_request_votes"
+    __table_args__ = (
+        UniqueConstraint(
+            "request_id",
+            "user_id",
+            name="uq_product_request_vote",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("product_requests.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    request: Mapped["ProductRequest"] = relationship(
+        back_populates="votes"
+    )
 
 
 # ══════════════ نظام الأقسام الديناميكي ══════════════
